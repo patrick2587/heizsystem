@@ -120,6 +120,7 @@
     <button class="tab" data-tab="timeseries">Zeitreihen</button>
     <button class="tab" data-tab="puffer">Pufferdynamik</button>
     <button class="tab" data-tab="bivalent">Bivalent-Analyse</button>
+    <button class="tab" data-tab="mischbetrieb">Mischbetrieb</button>
   </nav>
 
   <!-- TAB: ÜBERSICHT -->
@@ -276,6 +277,7 @@ Bilanz
       <label>System: <select id="ts-system"><option value="b33">SWWP B33</option><option value="a29">SWWP A29</option><option value="lwwp">LWWP</option><option value="oel">Ölkessel</option><option value="holz">Holzvergaser</option></select></label>
       <label>Zeitfenster: <select id="ts-window"><option value="full">ganzes Jahr</option><option value="winter">Kältewoche (Jan)</option><option value="trans">Übergangswoche (Apr)</option><option value="summer">Sommerwoche (Jul)</option><option value="day-cold">Kältester Tag</option></select></label>
     </div>
+
     <div class="card">
       <h2>Außentemperatur, VL-Anforderung, Pufferschichten</h2>
       <div class="meta">Klima und Pufferdynamik im gewählten Zeitfenster</div>
@@ -351,6 +353,52 @@ Bilanz
       <p>Die <strong>A29</strong> mit VL-Limit 60°C kommt bei der Auslegungs-Vorlauftemperatur 65°C an den kalten Tagen nicht hin — der Heizstab muss zuschießen, was den SCOP drückt. Wenn du in den Parametern die Auslegungs-VL auf 55°C reduzierst (z.B. nach Heizkörper-Tausch), siehst du wie der Heizstab-Anteil verschwindet.</p>
       <p>Die <strong>LWWP</strong> hat zwar VL bis 70°C, leidet aber unter dem hohen Hub bei kalten Tagen — bei -10°C Außentemperatur und 65°C VL ist der Hub 75K, der Carnot-COP fällt unter 2,0.</p>
       <p>Die <strong>B33</strong> ist für genau diesen Anwendungsfall gebaut: stabile Solequelle plus 73°C VL-Limit. Bivalent-Modus tritt praktisch nicht auf.</p>
+    </div>
+  </section>
+
+  <!-- TAB: MISCHBETRIEB -->
+  <section class="panel" id="panel-mischbetrieb">
+    <div class="controls-row">
+      <label>Holz-Anteil:
+        <input type="number" id="mb-anteil" value="80" step="5" min="0" max="100">%
+        <span class="label-tag">Rest = Backup-System</span>
+      </label>
+      <label>Backup-System:
+        <select id="mb-system">
+          <option value="b33">SWWP B33</option>
+          <option value="a29">SWWP A29</option>
+          <option value="lwwp">LWWP</option>
+          <option value="oel">Ölkessel</option>
+        </select>
+      </label>
+      <label>Random-Seed:
+        <input type="number" id="mb-seed" value="42" step="1">
+      </label>
+    </div>
+
+    <div class="card">
+      <h2>Mehrkosten gegenüber 100% Holz</h2>
+      <div class="meta">Bei zufallsverteiltem Einsatz von Holz (Anteil) und Backup-System (Rest). Der Differenzbetrag ist der "Komfort-Preis" für Stunden in denen kein Holz nachgelegt werden muss.</div>
+      <div class="chart-frame tall"><canvas id="chart-mb-extra"></canvas></div>
+    </div>
+
+    <div class="card" style="margin-top: 16px;">
+      <h2>Jahreskosten Solo Holz vs. Mischbetrieb</h2>
+      <div class="meta">Absolute Kosten über das Jahr. Holz-Linie ist die Referenz, Mischbetrieb-Linie liegt darüber — der Abstand sind die Komfort-Mehrkosten.</div>
+      <div class="chart-frame tall"><canvas id="chart-mb-cum"></canvas></div>
+    </div>
+
+    <div class="card" style="margin-top: 16px;">
+      <h2>Mehrkosten je Backup-System bei verschiedenen Holz-Anteilen</h2>
+      <div class="meta">Wie teuer wird der Komfort, wenn der Holz-Anteil 50%, 70%, 80%, 90% beträgt? Bei 100% Holz keine Mehrkosten — alles selbst gemacht.</div>
+      <div class="chart-frame tall"><canvas id="chart-mb-sweep"></canvas></div>
+    </div>
+
+    <div class="card desc" style="margin-top: 16px;">
+      <h2>Modellannahmen</h2>
+      <p><strong>Allokation:</strong> Für jede Stunde des Jahres wird per Zufall (gleichverteilt mit gegebenem Seed) entschieden, ob Holz primär oder das Backup-System läuft. Bei Holz-Anteil 80% läuft also in ~80% der Heizstunden Holz, in ~20% das Backup. Über 8760 Stunden ist die statistische Streuung gering (&lt;1%).</p>
+      <p><strong>Mehrkosten = Komfort-Preis:</strong> Wenn das Backup-System aktiv ist, muss nicht nachgelegt werden, der Holzvorrat reicht länger. Die Differenz Mischbetrieb minus Solo-Holz ist genau der Betrag, der für diese Bequemlichkeit gezahlt wird. Bei Holz-Anteil 0% läuft nur das Backup-System — die Mehrkosten sind dann maximal und entsprechen der Differenz Solo-Backup minus Solo-Holz.</p>
+      <p><strong>Was nicht modelliert ist:</strong> Smarte Steuerung (z.B. Backup nur an milden Tagen wenn der COP hoch ist, Holz an kalten Tagen wenn der COP niedrig ist) würde die Mehrkosten deutlich reduzieren. Das hier ist die Worst-Case-Annahme bei zufälliger Allokation. Eine optimierte Strategie könnte die Mehrkosten halbieren.</p>
     </div>
   </section>
 
@@ -1202,6 +1250,164 @@ function getWindow(name) {
   }
 }
 
+function renderMischbetrieb() {
+  // Defaults absichern falls State noch nicht initialisiert
+  if (typeof P.MB_Anteil_Holz !== 'number' || isNaN(P.MB_Anteil_Holz)) P.MB_Anteil_Holz = 80;
+  if (!P.MB_System) P.MB_System = 'b33';
+  if (typeof P.MB_Seed !== 'number' || isNaN(P.MB_Seed)) P.MB_Seed = 42;
+
+  const elExtra = document.getElementById('chart-mb-extra');
+  const elCum = document.getElementById('chart-mb-cum');
+  const elSweep = document.getElementById('chart-mb-sweep');
+  if (!elExtra || !elCum || !elSweep) return;
+
+  // Stündliche Kosten für alle Systeme sicher haben
+  for (const k of ['b33', 'a29', 'lwwp', 'holz', 'oel']) {
+    const rs = STATE.results[k];
+    if (!rs || !rs.ts) continue;
+    if (!rs.ts.cost || rs.ts.cost.length !== HOURS) {
+      rs.ts.cost = new Float32Array(HOURS);
+      for (let i = 0; i < HOURS; i++) {
+        rs.ts.cost[i] =
+          (rs.ts.e_strom[i] || 0) * P.P_Strom +
+          (rs.ts.e_oel[i] || 0) * P.P_Oel +
+          ((rs.ts.e_holz[i] || 0) / P.HW_Holz) * P.P_Holz;
+      }
+    }
+  }
+
+  const anteilHolz = P.MB_Anteil_Holz / 100;
+  const sysKey = P.MB_System;
+
+  const rng = mulberry32(P.MB_Seed);
+  const useHolz = new Uint8Array(HOURS);
+  for (let i = 0; i < HOURS; i++) {
+    useHolz[i] = rng() < anteilHolz ? 1 : 0;
+  }
+
+  const rH = STATE.results.holz;
+  const rB = STATE.results[sysKey];
+  if (!rH || !rB || !rH.ts.cost || !rB.ts.cost) return;
+
+  const cost_solo_h = rH.ts.cost;
+  const cost_solo_b = rB.ts.cost;
+  const cost_mix = new Float32Array(HOURS);
+  for (let i = 0; i < HOURS; i++) {
+    cost_mix[i] = useHolz[i] ? cost_solo_h[i] : cost_solo_b[i];
+  }
+
+  // Tagesweise aufintegrieren
+  const days = Array.from({length: 365}, (_, i) => i);
+  const cum_solo_h = new Array(365);
+  const cum_mix = new Array(365);
+  let accH = 0, accM = 0;
+  for (let d = 0; d < 365; d++) {
+    let dayH = 0, dayM = 0;
+    for (let h = 0; h < 24; h++) {
+      const i = d * 24 + h;
+      if (i >= HOURS) break;
+      dayH += cost_solo_h[i];
+      dayM += cost_mix[i];
+    }
+    accH += dayH;
+    accM += dayM;
+    cum_solo_h[d] = Math.round(accH);
+    cum_mix[d] = Math.round(accM);
+  }
+
+  // Plot 1: Mehrkosten je Backup-System (alle 4 nebeneinander, aktueller Anteil)
+  const backupKeys = ['b33', 'a29', 'lwwp', 'oel'];
+  const backupNames = { b33: 'SWWP B33', a29: 'SWWP A29', lwwp: 'LWWP', oel: 'Ölkessel' };
+  const totalSoloHolz = accH;
+  const extraCost = backupKeys.map(k => {
+    const rb = STATE.results[k];
+    if (!rb || !rb.ts || !rb.ts.cost) return 0;
+    let totalMix = 0;
+    for (let i = 0; i < HOURS; i++) {
+      totalMix += useHolz[i] ? cost_solo_h[i] : rb.ts.cost[i];
+    }
+    return totalMix - totalSoloHolz;
+  });
+
+  if (charts.mbExtra) charts.mbExtra.destroy();
+  charts.mbExtra = new Chart(document.getElementById('chart-mb-extra'), {
+    type: 'bar',
+    data: {
+      labels: backupKeys.map(k => backupNames[k]),
+      datasets: [{
+        data: extraCost.map(Math.round),
+        backgroundColor: backupKeys.map(k => COL[k]),
+        borderRadius: 4,
+        barPercentage: 0.65,
+        categoryPercentage: 0.85,
+      }]
+    },
+    options: { ...chartDefaults,
+      plugins: { ...chartDefaults.plugins, tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => '+' + fmt0(c.parsed.y) + ' €/Jahr ggü. Solo Holz' } } },
+      scales: {
+        y: { beginAtZero: true, grid: grid(), ticks: { ...tickF(), callback: v => fmt0(v) + ' €' }, title: { display: true, text: 'Mehrkosten gegenüber 100% Holz', font: { size: 11 } } },
+        x: { grid: { display: false }, ticks: tickF() }
+      }
+    }
+  });
+
+  // Plot 2: Kumulative Kosten Solo Holz vs Mischbetrieb (für gewähltes Backup-System)
+  if (charts.mbCum) charts.mbCum.destroy();
+  charts.mbCum = new Chart(document.getElementById('chart-mb-cum'), {
+    type: 'line',
+    data: { labels: days, datasets: [
+      { label: '100% Holz (Referenz)', data: cum_solo_h, borderColor: COL.holz, backgroundColor: COL.holz + '20', borderWidth: 2, pointRadius: 0, tension: 0.2, fill: 'origin' },
+      { label: `Mischbetrieb (${P.MB_Anteil_Holz}% Holz / ${100 - P.MB_Anteil_Holz}% ${backupNames[sysKey]})`, data: cum_mix, borderColor: COL[sysKey], backgroundColor: COL[sysKey] + '20', borderWidth: 2, pointRadius: 0, tension: 0.2, fill: '-1' },
+    ]},
+    options: { ...chartDefaults,
+      plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 18, boxHeight: 3, padding: 10 } }, tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => c.dataset.label + ': ' + fmt0(c.parsed.y) + ' €' } } },
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        y: { beginAtZero: true, grid: grid(), ticks: { ...tickF(), callback: v => fmt0(v) + ' €' } },
+        x: { grid: { display: false }, ticks: { ...tickF(), maxTicksLimit: 12, callback: function(v) { const d = parseInt(this.getLabelForValue(v)); const m = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez']; const ms = [0,31,59,90,120,151,181,212,243,273,304,334]; for (let i = 11; i >= 0; i--) if (d >= ms[i]) return d === ms[i] ? m[i] : ''; return ''; } } }
+      }
+    }
+  });
+
+  // Plot 3: Sweep über Holz-Anteile 0/25/50/70/80/90/100% pro Backup-System
+  const sweepAnteile = [0, 25, 50, 70, 80, 90, 100];
+  const sweepDs = backupKeys.map(k => {
+    const rb = STATE.results[k];
+    if (!rb || !rb.ts || !rb.ts.cost) return null;
+    const data = sweepAnteile.map(pct => {
+      // Eigene Allokation pro Anteil mit eigenem Seed-Offset für Reproduzierbarkeit
+      const rng2 = mulberry32(P.MB_Seed);
+      let totalMix = 0;
+      const a = pct / 100;
+      for (let i = 0; i < HOURS; i++) {
+        const useH = rng2() < a;
+        totalMix += useH ? cost_solo_h[i] : rb.ts.cost[i];
+      }
+      return Math.round(totalMix - totalSoloHolz);
+    });
+    return {
+      label: backupNames[k],
+      data,
+      borderColor: COL[k], backgroundColor: COL[k],
+      borderWidth: 2, pointRadius: 3, tension: 0.2,
+    };
+  }).filter(x => x !== null);
+
+  if (charts.mbSweep) charts.mbSweep.destroy();
+  charts.mbSweep = new Chart(document.getElementById('chart-mb-sweep'), {
+    type: 'line',
+    data: { labels: sweepAnteile.map(a => a + '% Holz'), datasets: sweepDs },
+    options: { ...chartDefaults,
+      plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 18, boxHeight: 3, padding: 10 } }, tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => c.dataset.label + ': ' + (c.parsed.y >= 0 ? '+' : '') + fmt0(c.parsed.y) + ' €/Jahr' } } },
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        y: { beginAtZero: true, grid: grid(), ticks: { ...tickF(), callback: v => fmt0(v) + ' €' }, title: { display: true, text: 'Mehrkosten ggü. 100% Holz', font: { size: 11 } } },
+        x: { grid: { display: false }, title: { display: true, text: 'Holz-Anteil', font: { size: 11 } }, ticks: tickF() }
+      }
+    }
+  });
+}
+
 function renderTimeseries() {
   const sysKey = document.getElementById('ts-system').value;
   const winName = document.getElementById('ts-window').value;
@@ -1612,6 +1818,7 @@ function renderAll() {
   safe('timeseries', renderTimeseries);
   safe('puffer', renderPuffer);
   safe('bivalent', renderBivalent);
+  safe('mischbetrieb', renderMischbetrieb);
 }
 
 // ============================================
@@ -1628,6 +1835,11 @@ document.getElementById('tabs').addEventListener('click', e => {
 document.getElementById('ts-system').addEventListener('change', renderTimeseries);
 document.getElementById('ts-window').addEventListener('change', renderTimeseries);
 document.getElementById('puf-system').addEventListener('change', renderPuffer);
+
+// Mischbetrieb-Inputs
+document.getElementById('mb-anteil').addEventListener('input', e => { P.MB_Anteil_Holz = parseFloat(e.target.value) || 0; renderMischbetrieb(); });
+document.getElementById('mb-system').addEventListener('change', e => { P.MB_System = e.target.value; renderMischbetrieb(); });
+document.getElementById('mb-seed').addEventListener('input', e => { P.MB_Seed = parseInt(e.target.value) || 42; renderMischbetrieb(); });
 
 // ============================================
 // INIT
