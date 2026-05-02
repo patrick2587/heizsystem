@@ -73,7 +73,7 @@
   .input-group .unit { font-size: 11px; color: var(--text-mute); }
   .group-title { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-mute); margin: 0 0 8px; padding-top: 12px; }
   .group-title:first-child { padding-top: 0; }
-  .system-card { border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; background: var(--bg-card); border-left-width: 3px; }
+  .system-card { border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; background: var(--bg-card); border-left-width: 3px; position: relative; }
   .system-card.lwwp { border-left-color: var(--col-lwwp); }
   .system-card.a29 { border-left-color: var(--col-a29); }
   .system-card.b33 { border-left-color: var(--col-b33); }
@@ -81,6 +81,14 @@
   .system-card.oel { border-left-color: var(--col-oel); }
   .system-card h3 { margin: 0 0 4px; font-size: 13px; font-weight: 500; }
   .system-card .system-meta { font-size: 11px; color: var(--text-mute); margin-bottom: 10px; }
+  .system-card .card-icon { position: absolute; top: 14px; right: 16px; opacity: 0.35; line-height: 1; color: var(--text-mute); }
+  .system-card .card-icon svg { width: 28px; height: 28px; }
+  .system-card.b33 .card-icon { color: var(--col-b33); }
+  .system-card.a29 .card-icon { color: var(--col-a29); }
+  .system-card.lwwp .card-icon { color: var(--col-lwwp); }
+  .system-card.holz .card-icon { color: var(--col-holz); }
+  .system-card.oel .card-icon { color: var(--col-oel); }
+  .system-card .card-sub { font-size: 11px; color: var(--text-mute); margin-bottom: 8px; line-height: 1.5; }
   .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; font-size: 11px; }
   .kpi-grid .key { color: var(--text-mute); }
   .kpi-grid .val { color: var(--text); font-variant-numeric: tabular-nums; text-align: right; font-weight: 500; }
@@ -167,11 +175,34 @@ Bilanz
     </div>
 
     <div class="card" style="margin-top: 16px;">
+      <h2>Warmwasser</h2>
+      <div class="meta" id="ww-meta">–</div>
+      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
+          WW-Bereitung:
+          <select id="ww-modus" style="height: 30px; padding: 0 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card); font-size: 12px; font-family: inherit; color: var(--text);">
+            <option value="friwa">Frischwasserstation (FriWa)</option>
+            <option value="bwwp">Brauchwasser-Wärmepumpe</option>
+            <option value="aus">Deaktiviert</option>
+          </select>
+        </label>
+      </div>
+      <div class="kpi-grid" id="ww-kpis" style="max-width: 400px;">
+        <div class="key">Personen</div><div class="val">6</div>
+        <div class="key">Bedarf</div><div class="val" id="ww-kpi-bedarf">–</div>
+        <div class="key">VL-Minimum</div><div class="val" id="ww-kpi-vl">–</div>
+        <div class="key">Jahres-WW-Last</div><div class="val" id="ww-kpi-last">–</div>
+        <div class="key" id="ww-kpi-strom-key" style="display:none">BWWP Strom</div><div class="val" id="ww-kpi-strom" style="display:none">–</div>
+        <div class="key" id="ww-kpi-cost-key" style="display:none">BWWP Kosten</div><div class="val" id="ww-kpi-cost" style="display:none">–</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 16px;">
       <h2>Energiebilanz-Übersicht</h2>
       <div class="meta">Jahressummen für das aktuell gewählte Wetterszenario, alle 5 Erzeuger-Optionen verglichen.</div>
       <div class="grid grid-2" style="margin-bottom: 16px;">
         <div class="card" style="background: var(--bg-soft); border: none;">
-          <div class="meta">Wärmebedarf (Heizung + WW + Pufferverluste)</div>
+          <div class="meta" id="kpi-q-total-label">Wärmebedarf (Heizung + WW + Pufferverluste)</div>
           <div style="font-size: 28px; font-weight: 500; font-variant-numeric: tabular-nums;" id="kpi-q-total">– kWh/a</div>
         </div>
         <div class="card" style="background: var(--bg-soft); border: none;">
@@ -424,7 +455,9 @@ const P = {
   // WE2 Neubau
   Q_norm_WE2: 5.7, T_HG_WE2: 15, VL_aus_WE2: 35, T_soll_tag_WE2: 22, T_soll_nacht_WE2: 19,
   // Warmwasser
-  WW_kWh_d: 9.6, T_WW: 55, // 6P · ~50L/P · ΔT 35K
+  WW_kWh_d: 9.6, T_WW: 55, WW_modus: 'friwa', // 6P · ~40L/P · ΔT 35K (12→47°C)
+  // Brauchwasser-WP
+  BWWP_cop: 3.7, BWWP_capex: 3500, BWWP_wartung: 50,
   // Puffer
   V_Puffer: 4000, T_Umg: 16, k_Verlust: 0.000002, // pro L und K, kWh/(K·h·L) — ~1,5 kWh/d je 1000L bei 30K ΔT
   // Strompreis etc
@@ -453,6 +486,9 @@ const WP = {
 // Konstanten
 const C_WATER = 0.001163; // kWh/(L·K)
 const HOURS = 8760;
+
+// Anschaffungskosten schlüsselfertig ohne Förderung
+const CAPEX = { b33: 40000, a29: 30500, lwwp: 35000, oel: 16000, holz: 27300 };
 
 // ============================================
 // PHYSIK-FUNKTIONEN
@@ -549,7 +585,7 @@ function T_sole_kusuda(hour) {
 // Carnot-COP
 function copCarnot(T_VL, T_Quelle, eta) {
   const dT = T_VL - T_Quelle;
-  if (dT <= 1) return 8.0;
+  if (dT <= 1) return 6.0;
   const cop = eta * (T_VL + 273.15) / dT;
   return Math.max(1.0, Math.min(6.0, cop));
 }
@@ -591,8 +627,9 @@ function buildLoads(T_aus) {
 
   const Q_WE1 = new Float32Array(HOURS);
   const Q_WE2 = new Float32Array(HOURS);
-  const Q_WW = new Float32Array(HOURS); // bleibt im Modell für Anzeige, aber = 0
+  const Q_WW = new Float32Array(HOURS);
   const VL_soll = new Float32Array(HOURS);
+  const T_VL_WW = P.T_WW + 5; // FriWa braucht Puffer-Oben mindestens T_WW + 5°C
 
   for (let h = 0; h < HOURS; h++) {
     const ta = T_aus[h];
@@ -601,12 +638,14 @@ function buildLoads(T_aus) {
 
     Q_WE1[h] = ta < P.T_HG_WE1 ? UA1 * Math.max(0, tsoll1 - ta) : 0;
     Q_WE2[h] = ta < P.T_HG_WE2 ? UA2 * Math.max(0, tsoll2 - ta) : 0;
-    Q_WW[h] = 0; // WW deaktiviert für Debug
+    // FriWa: WW-Last geht in den Puffer, VL muss 60°C sein
+    // BWWP: WW separat, Puffer nur für Heizung
+    // aus: kein WW
+    Q_WW[h] = P.WW_modus === 'friwa' ? WW_profile(h) : 0;
 
     const vl1 = ta < P.T_HG_WE1 ? VL_kurve(ta, P.T_HG_WE1, P.T_Norm, tsoll1, P.VL_aus_WE1) : 0;
     const vl2 = ta < P.T_HG_WE2 ? VL_kurve(ta, P.T_HG_WE2, P.T_Norm, tsoll2, P.VL_aus_WE2) : 0;
-    // WW-Anforderung entfernt — nur Heizkurve
-    VL_soll[h] = Math.max(vl1, vl2); // 0 wenn kein Heizbedarf
+    VL_soll[h] = P.WW_modus === 'friwa' ? Math.max(vl1, vl2, T_VL_WW) : Math.max(vl1, vl2);
   }
   return { Q_WE1, Q_WE2, Q_WW, VL_soll };
 }
@@ -683,7 +722,7 @@ function simulate(sysKey, T_aus, loads) {
     // Q_gen ≈ Q_demand + minimale Puffernachladung. Brenner takten in der Realität sub-stündlich;
     // wir approximieren das durch eine bedarfsproportionale Leistung mit kleinem Aufschlag.
     const T_max_buf = 75;
-    const T_min_buf = Math.max(VL + 2, P.T_WW + 5);
+    const T_min_buf = P.WW_modus === 'friwa' ? Math.max(VL + 2, P.T_WW + 5) : VL + 2;
 
     if (T_max_buf > T_min_buf) {
       // Hysterese: Erzeuger an wenn Pufferspitze unter VL+5, aus wenn deutlich darüber
@@ -714,9 +753,6 @@ function simulate(sysKey, T_aus, loads) {
       const headroom_top = Math.max(0, T_max - T_top) * C_layer;
       const headroom_mid = Math.max(0, T_max - T_mid) * C_layer;
       const headroom = headroom_top + headroom_mid * 0.5; // mid wird langsamer mit warmer aufgeladen
-
-      // Außerdem: max. 1h Wärmebedarf vorausladen, sonst takten Brenner zu kurz
-      const headroom_capped = Math.min(headroom, Math.max(50, Q_demand * 4));
 
       if (sysKey === 'oel') {
         const kW = 26;
@@ -950,14 +986,39 @@ function setupInputs() {
 // ============================================
 function renderOverview() {
   const r_b33 = STATE.results.b33.kpi;
-  const Q_total = r_b33.Q_load + r_b33.Q_loss;
+  const wwTherm = P.WW_modus !== 'aus' ? Math.round(P.WW_kWh_d * 365) : 0;
+  const Q_total = r_b33.Q_load + r_b33.Q_loss + (P.WW_modus === 'bwwp' ? wwTherm : 0);
   document.getElementById('kpi-q-total').textContent = fmt0(Q_total) + ' kWh/a';
   document.getElementById('kpi-q-loss').textContent = fmt0(r_b33.Q_loss) + ' kWh/a';
+  const qLabel = P.WW_modus === 'friwa' ? 'Wärmebedarf (Heizung + WW + Pufferverluste)'
+    : P.WW_modus === 'bwwp' ? 'Wärmebedarf (Heizung + WW via BWWP + Pufferverluste)'
+    : 'Wärmebedarf (nur Heizung + Pufferverluste · WW deaktiviert)';
+  document.getElementById('kpi-q-total-label').textContent = qLabel;
 
   const c = document.getElementById('overview-cards');
   c.innerHTML = '';
   const order = ['b33', 'a29', 'lwwp', 'holz', 'oel'];
-  const names = { b33: 'SWWP B33 · 350-G', a29: 'SWWP A29 · 300-G', lwwp: 'LWWP Vaillant', holz: 'Holzvergaser S3', oel: 'Ölkessel Vitoladens' };
+  const names = {
+    b33: 'Viessmann Vitocal 350-G BW 351.B33',
+    a29: 'Viessmann Vitocal 300-G BWS 301.A29',
+    lwwp: 'Vaillant aroTHERM plus Kaskade 2× 17 kW',
+    holz: 'Fröling S3 Turbo 50 kW',
+    oel: 'Viessmann Vitoladens 300-W',
+  };
+  const subs = {
+    b33: 'Sole-Wasser-WP · 32,7 kW · COP 5,0 (B0/W35) · VL bis 73°C',
+    a29: 'Sole-Wasser-WP · 29 kW · COP 4,9 (B0/W35) · VL bis 60°C',
+    lwwp: 'Luft-Wasser-WP-Kaskade · 34 kW · R290 · VL bis 70°C',
+    holz: 'Scheitholzkessel · Lambda-geregelt · 230 L Füllraum · η 92%',
+    oel: 'Öl-Brennwertkessel · 26 kW · η 97% · Compact-Blue-Brenner',
+  };
+  const svgIcons = {
+    b33: '<svg viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="2.5"/><path d="M 12 4.5 C 14.5 6 14.5 9 12 11.5"/><path d="M 19.5 12 C 18 14.5 15 14.5 12.5 12"/><path d="M 12 19.5 C 9.5 18 9.5 15 12 12.5"/><path d="M 4.5 12 C 6 9.5 9 9.5 11.5 12"/></g></svg>',
+    a29: '<svg viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="2.5"/><path d="M 12 4.5 C 14.5 6 14.5 9 12 11.5"/><path d="M 19.5 12 C 18 14.5 15 14.5 12.5 12"/><path d="M 12 19.5 C 9.5 18 9.5 15 12 12.5"/><path d="M 4.5 12 C 6 9.5 9 9.5 11.5 12"/></g></svg>',
+    lwwp: '<svg viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="2.5"/><path d="M 12 4.5 C 14.5 6 14.5 9 12 11.5"/><path d="M 19.5 12 C 18 14.5 15 14.5 12.5 12"/><path d="M 12 19.5 C 9.5 18 9.5 15 12 12.5"/><path d="M 4.5 12 C 6 9.5 9 9.5 11.5 12"/></g></svg>',
+    holz: '<svg viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="5.5" cy="15.5" r="3"/><circle cx="12" cy="15.5" r="3"/><circle cx="18.5" cy="15.5" r="3"/><circle cx="8.5" cy="9.5" r="3"/><circle cx="15.5" cy="9.5" r="3"/></g></svg>',
+    oel: '<svg viewBox="0 0 24 24"><path d="M 12 3 Q 6 11 6 16 A 6 6 0 0 0 18 16 Q 18 11 12 3 Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>',
+  };
   for (const k of order) {
     const r = STATE.results[k].kpi;
     const wartung = P['W_' + k] || 0;
@@ -975,7 +1036,9 @@ function renderOverview() {
     const ratioColor = (r.gen_load_ratio > 1.5 || r.gen_load_ratio < 0.8) ? 'var(--col-bad)' : 'var(--text)';
     c.innerHTML += `
       <div class="system-card ${k}">
+        <span class="card-icon">${svgIcons[k]}</span>
         <h3>${names[k]}</h3>
+        <div class="card-sub">${subs[k]}</div>
         <div class="system-meta">${status}</div>
         <div class="kpi-grid">
           <div class="key">Bedarf (Last)</div><div class="val">${fmt0(r.Q_load)} kWh</div>
@@ -984,11 +1047,59 @@ function renderOverview() {
           <div class="key">Q_gen / (Last+Verl)</div><div class="val" style="color: ${ratioColor};">${fmt2(r.gen_load_ratio)}</div>
           ${scopRow}
           ${eRow}
+          <div class="key">Anschaffung</div><div class="val">${fmt0(CAPEX[k])} €</div>
           <div class="key">Wartung</div><div class="val">${fmt0(wartung)} €/a</div>
           <div class="key">Jahreskosten</div><div class="val">${fmt0(cost)} €</div>
           <div class="key">VL-Deckung</div><div class="val">${pct(r.coverage)}</div>
         </div>
       </div>`;
+  }
+
+  // BWWP-Card immer anzeigen
+  const isBWWP = P.WW_modus === 'bwwp';
+  const isFriWa = P.WW_modus === 'friwa';
+  const wwJahr = Math.round(P.WW_kWh_d * 365);
+  const bwwpStrom = isBWWP ? Math.round(wwJahr / P.BWWP_cop) : 0;
+  const bwwpKosten = isBWWP ? Math.round(bwwpStrom * P.P_Strom + P.BWWP_wartung) : 0;
+  const bwwpStatus = isBWWP
+    ? '<span class="pill ok">Aktiv</span>'
+    : '<span class="pill" style="background: rgba(142,140,132,0.12); color: var(--text-mute);">Inaktiv</span>';
+
+  c.innerHTML += `
+    <div class="system-card" style="border-left: 3px solid var(--col-stab); ${isBWWP ? '' : 'opacity: 0.5;'}">
+      <span class="card-icon" style="color: var(--col-stab);"><svg viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M 7 5 L 7 12 L 17 12 L 17 9"/><path d="M 14 9 L 20 9"/><path d="M 7 12 L 7 16 Q 7 19 10 19 L 12 19"/><path d="M 12 16 L 12 22"/></g></svg></span>
+      <h3>Stiebel Eltron WWK 300 electronic</h3>
+      <div class="card-sub">Brauchwasser-WP · 300 L · COP ${fmt1(P.BWWP_cop)} · entkoppelt vom Heizpuffer</div>
+      <div class="system-meta">${bwwpStatus}</div>
+      <div class="kpi-grid">
+        <div class="key">WW-Bedarf</div><div class="val">${fmt0(wwJahr)} kWh/a</div>
+        <div class="key">COP</div><div class="val">${fmt1(P.BWWP_cop)}</div>
+        <div class="key">Strom</div><div class="val">${isBWWP ? fmt0(bwwpStrom) + ' kWh/a' : '—'}</div>
+        <div class="key">Anschaffung</div><div class="val">${fmt0(P.BWWP_capex)} €</div>
+        <div class="key">Wartung</div><div class="val">${isBWWP ? fmt0(P.BWWP_wartung) + ' €/a' : '—'}</div>
+        <div class="key">Jahreskosten</div><div class="val">${isBWWP ? fmt0(bwwpKosten) + ' €' : '0 €'}</div>
+      </div>
+    </div>`;
+
+  // WW-KPIs aktualisieren
+  const metaTexts = {
+    friwa: 'Frischwasserstation (FriWa) am Puffer. Puffer-Oben muss ganzjährig mindestens ' + (P.T_WW + 5) + '°C halten — auch im Sommer. Erhöht den Hub und senkt den COP.',
+    bwwp: 'Separate Brauchwasser-WP (300L Speicher, COP ' + fmt1(P.BWWP_cop) + '). WW entkoppelt vom Hauptpuffer — Heizungs-WP kann im Sommer mit niedrigerer VL laufen.',
+    aus: 'Warmwasser ist deaktiviert — nur Heizlast wird simuliert.',
+  };
+  document.getElementById('ww-meta').textContent = metaTexts[P.WW_modus];
+  document.getElementById('ww-kpi-bedarf').textContent = P.WW_kWh_d + ' kWh/Tag';
+  document.getElementById('ww-kpi-vl').textContent = isFriWa ? (P.T_WW + 5) + '°C' : '—';
+  document.getElementById('ww-kpi-last').textContent = P.WW_modus === 'aus' ? 'deaktiviert' : fmt0(wwJahr) + ' kWh/a';
+
+  const showBwwp = isBWWP ? '' : 'none';
+  document.getElementById('ww-kpi-strom-key').style.display = showBwwp;
+  document.getElementById('ww-kpi-strom').style.display = showBwwp;
+  document.getElementById('ww-kpi-cost-key').style.display = showBwwp;
+  document.getElementById('ww-kpi-cost').style.display = showBwwp;
+  if (isBWWP) {
+    document.getElementById('ww-kpi-strom').textContent = fmt0(bwwpStrom) + ' kWh/a';
+    document.getElementById('ww-kpi-cost').textContent = fmt0(bwwpKosten) + ' €/a';
   }
 }
 
@@ -1413,7 +1524,11 @@ function renderMischbetrieb() {
 
   // Plot 3: 20-Jahre-TCO Backup ohne Förderung (Anschaffung + 20 · Mehrkosten)
   // CAPEX-Werte aus v3-App, brutto ohne Förderung
-  const capexBackup = { b33: 40000, a29: 30500, lwwp: 35000, oel: 16000 };
+  const capexBackup = CAPEX;
+  // BWWP-Kosten: CAPEX einmal auf alle Systeme, Jahreskosten (Strom+Wartung) auf jedes
+  const bwwpActive = P.WW_modus === 'bwwp';
+  const bwwpCapex = bwwpActive ? P.BWWP_capex : 0;
+  const bwwpJahr = bwwpActive ? Math.round((P.WW_kWh_d * 365) / P.BWWP_cop) * P.P_Strom + P.BWWP_wartung : 0;
   const wartungBackup = { b33: P.W_b33, a29: P.W_a29, lwwp: P.W_lwwp, oel: P.W_oel };
   const horizon = 20;
 
@@ -1425,6 +1540,7 @@ function renderMischbetrieb() {
     data: {
       labels: backupKeys.map(k => backupNames[k]),
       datasets: [
+        ...(bwwpActive ? [{ label: 'BWWP (Anschaffung + 20 J Betrieb)', data: backupKeys.map(() => Math.round(bwwpCapex + horizon * bwwpJahr)), backgroundColor: '#ccc', borderRadius: 4, stack: 'tco' }] : []),
         { label: 'Anschaffung', data: backupKeys.map(k => capexBackup[k]), backgroundColor: backupKeys.map(k => COL[k] + 'AA'), borderRadius: 4, stack: 'tco' },
         { label: '20 J Mehrkosten', data: backupKeys.map((k, i) => Math.round(horizon * extraCost[i])), backgroundColor: backupKeys.map(k => COL[k]), borderRadius: 4, stack: 'tco' },
         { label: '20 J Wartung', data: backupKeys.map(k => Math.round(horizon * wartungBackup[k])), backgroundColor: backupKeys.map(k => COL[k] + '55'), borderRadius: 4, stack: 'tco' },
@@ -1446,7 +1562,7 @@ function renderMischbetrieb() {
   const tcoTimeDs = [
     ...backupKeys.map((k, ki) => ({
       label: backupNames[k],
-      data: years.map(y => capexBackup[k] + y * (extraCost[ki] + wartungBackup[k])),
+      data: years.map(y => capexBackup[k] + bwwpCapex + y * (extraCost[ki] + wartungBackup[k] + bwwpJahr)),
       borderColor: COL[k],
       backgroundColor: COL[k],
       borderWidth: 2,
@@ -1455,7 +1571,7 @@ function renderMischbetrieb() {
     })),
     ...wpKeys.map(k => ({
       label: backupNames[k] + ' (mit Förderung)',
-      data: years.map(y => capexBackup[k] - foerderung + y * (extraCost[backupKeys.indexOf(k)] + wartungBackup[k])),
+      data: years.map(y => capexBackup[k] + bwwpCapex - foerderung + y * (extraCost[backupKeys.indexOf(k)] + wartungBackup[k] + bwwpJahr)),
       borderColor: COL[k],
       backgroundColor: COL[k],
       borderWidth: 2,
@@ -1978,6 +2094,9 @@ document.getElementById('tabs').addEventListener('click', e => {
 document.getElementById('ts-system').addEventListener('change', renderTimeseries);
 document.getElementById('ts-window').addEventListener('change', renderTimeseries);
 document.getElementById('puf-system').addEventListener('change', renderPuffer);
+
+// WW-Modus
+document.getElementById('ww-modus').addEventListener('change', e => { P.WW_modus = e.target.value; rerun(); });
 
 // Mischbetrieb-Inputs
 document.getElementById('mb-anteil').addEventListener('input', e => { P.MB_Anteil_Holz = parseFloat(e.target.value) || 0; renderMischbetrieb(); });
