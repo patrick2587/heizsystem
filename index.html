@@ -389,6 +389,18 @@ Bilanz
     </div>
 
     <div class="card" style="margin-top: 16px;">
+      <h2>20-Jahre-Gesamtkosten Backup · zusätzliche Anschaffung + Mehrkosten</h2>
+      <div class="meta">Bei <span id="mb-anteil-display">80</span>% Holz-Anteil und ohne Förderung. Anschaffungskosten zusätzlich zum Holzvergaser plus 20 Jahre kumulierte Komfort-Mehrkosten. Hinweis: Wärmepumpen sind über BAFA/BEG bis max. 15.000 € förderfähig — die Werte hier zeigen den Worst-Case ohne Förderung.</div>
+      <div class="chart-frame tall"><canvas id="chart-mb-tco20"></canvas></div>
+    </div>
+
+    <div class="card" style="margin-top: 16px;">
+      <h2>Kumulative Gesamtkosten über 20 Jahre · Verlauf</h2>
+      <div class="meta">Anschaffung im Jahr 0 als Sprung, dann jährliche Mehrkosten linear akkumuliert. Zeigt wann sich welches System gegenüber den anderen amortisiert. Wo Linien sich kreuzen, lohnt der Wechsel.</div>
+      <div class="chart-frame tall"><canvas id="chart-mb-tco-time"></canvas></div>
+    </div>
+
+    <div class="card" style="margin-top: 16px;">
       <h2>Mehrkosten je Backup-System bei verschiedenen Holz-Anteilen</h2>
       <div class="meta">Wie teuer wird der Komfort, wenn der Holz-Anteil 50%, 70%, 80%, 90% beträgt? Bei 100% Holz keine Mehrkosten — alles selbst gemacht.</div>
       <div class="chart-frame tall"><canvas id="chart-mb-sweep"></canvas></div>
@@ -1369,7 +1381,74 @@ function renderMischbetrieb() {
     }
   });
 
-  // Plot 3: Sweep über Holz-Anteile 0/25/50/70/80/90/100% pro Backup-System
+  // Plot 3: 20-Jahre-TCO Backup ohne Förderung (Anschaffung + 20 · Mehrkosten)
+  // CAPEX-Werte aus v3-App, brutto ohne Förderung
+  const capexBackup = { b33: 38600, a29: 31900, lwwp: 37300, oel: 21500 };
+  const horizon = 20;
+  const tco20Data = backupKeys.map(k => capexBackup[k] + horizon * extraCost[backupKeys.indexOf(k)]);
+
+  document.getElementById('mb-anteil-display').textContent = P.MB_Anteil_Holz;
+
+  if (charts.mbTco20) charts.mbTco20.destroy();
+  charts.mbTco20 = new Chart(document.getElementById('chart-mb-tco20'), {
+    type: 'bar',
+    data: {
+      labels: backupKeys.map(k => backupNames[k]),
+      datasets: [
+        { label: 'Anschaffung', data: backupKeys.map(k => capexBackup[k]), backgroundColor: backupKeys.map(k => COL[k] + 'AA'), borderRadius: 4, stack: 'tco' },
+        { label: '20 J Mehrkosten', data: backupKeys.map((k, i) => Math.round(horizon * extraCost[i])), backgroundColor: backupKeys.map(k => COL[k]), borderRadius: 4, stack: 'tco' },
+      ]
+    },
+    options: { ...chartDefaults,
+      plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 14, boxHeight: 14, padding: 10 } }, tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => c.dataset.label + ': ' + fmt0(c.parsed.y) + ' €' } } },
+      scales: {
+        y: { stacked: true, beginAtZero: true, grid: grid(), ticks: { ...tickF(), callback: v => fmt0(v / 1000) + 'k €' }, title: { display: true, text: 'Gesamtkosten Backup über 20 Jahre', font: { size: 11 } } },
+        x: { stacked: true, grid: { display: false }, ticks: tickF() }
+      }
+    }
+  });
+
+  // Plot 3b: Kumulative Gesamtkosten über 20 Jahre – Verlauf (Linie)
+  const years = Array.from({ length: horizon + 1 }, (_, i) => i);
+  const wpKeys = ['b33', 'a29', 'lwwp'];
+  const foerderung = 15000;
+  const tcoTimeDs = [
+    ...backupKeys.map((k, ki) => ({
+      label: backupNames[k],
+      data: years.map(y => capexBackup[k] + y * extraCost[ki]),
+      borderColor: COL[k],
+      backgroundColor: COL[k],
+      borderWidth: 2,
+      pointRadius: 0,
+      tension: 0.2,
+    })),
+    ...wpKeys.map(k => ({
+      label: backupNames[k] + ' (mit Förderung)',
+      data: years.map(y => capexBackup[k] - foerderung + y * extraCost[backupKeys.indexOf(k)]),
+      borderColor: COL[k],
+      backgroundColor: COL[k],
+      borderWidth: 2,
+      borderDash: [6, 4],
+      pointRadius: 0,
+      tension: 0.2,
+    })),
+  ];
+
+  if (charts.mbTcoTime) charts.mbTcoTime.destroy();
+  charts.mbTcoTime = new Chart(document.getElementById('chart-mb-tco-time'), {
+    type: 'line',
+    data: { labels: years.map(y => 'Jahr ' + y), datasets: tcoTimeDs },
+    options: { ...chartDefaults,
+      plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 18, boxHeight: 3, padding: 10 } }, tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => c.dataset.label + ': ' + fmt0(c.parsed.y) + ' €' } } },
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        y: { beginAtZero: true, grid: grid(), ticks: { ...tickF(), callback: v => fmt0(v / 1000) + 'k €' }, title: { display: true, text: 'Kumulative Kosten (Backup)', font: { size: 11 } } },
+        x: { grid: { display: false }, ticks: tickF() }
+      }
+    }
+  });
+
+  // Plot 4: Sweep über Holz-Anteile 0/25/50/70/80/90/100% pro Backup-System
   const sweepAnteile = [0, 25, 50, 70, 80, 90, 100];
   const sweepDs = backupKeys.map(k => {
     const rb = STATE.results[k];
