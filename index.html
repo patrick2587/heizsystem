@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Heizsystem-Vergleich</title>
+<title>Heizsystem-Vergleich v2</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
   :root {
@@ -319,12 +319,51 @@
     font-size: 11px;
     margin-left: 8px;
   }
+  .scenario-controls {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 12px;
+    padding: 10px 14px;
+    background: var(--bg-soft);
+    border-radius: var(--radius-sm);
+  }
+  .scenario-controls label {
+    font-size: 12px;
+    color: var(--text-soft);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .scenario-controls input[type="number"] {
+    width: 70px;
+    height: 28px;
+    padding: 0 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    font-size: 12px;
+    font-family: inherit;
+    color: var(--text);
+    text-align: right;
+  }
+  .scenario-controls input[type="number"]:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+    border-color: transparent;
+  }
+  .scenario-tag {
+    font-size: 11px;
+    color: var(--text-mute);
+    margin-left: 4px;
+  }
 </style>
 </head>
 <body>
 <div class="app">
   <header>
-    <h1>Heizsystem-Vergleich</h1>
+    <h1>Heizsystem-Vergleich <span style="color: var(--text-mute); font-size: 16px; margin-left: 6px;">v2</span></h1>
     <span class="sub-title">Solo Innova 50 + Vitola Biferral · 6 Erzeuger im Vergleich</span>
   </header>
 
@@ -338,6 +377,7 @@
     <button class="tab" data-tab="forecast">Prognose 2035</button>
     <button class="tab" data-tab="pv">PV-Einfluss</button>
     <button class="tab" data-tab="ww">Warmwasser</button>
+    <button class="tab" data-tab="wp-eff">WP-Effizienz</button>
     <button class="tab" data-tab="sim">Jahressimulation</button>
   </nav>
 
@@ -396,6 +436,7 @@
           <p>Aktuell läuft der Mischbetrieb mit ~650 L Heizöl pro Jahr (etwa 11% energetisch), der Rest wird mit Holz gedeckt. Beide Bestandsgeräte nähern sich dem Lebensende und stehen vor einer Modernisierungsentscheidung.</p>
           <p>Diese Webapp vergleicht <strong>sechs Erzeuger-Optionen</strong> für eine Modernisierung über 25 Jahre: Holzvergaser-Neuanschaffung, Ölkessel-Neuanschaffung, Heizstab-Lösung, Luft-Wasser-Wärmepumpe, Sole-Wasser-Wärmepumpe in zwei Größen (A29 und B33).</p>
           <p>Alle Berechnungen laufen reaktiv über die Parameter im Tab <strong>Parameter</strong>. Werte ändern, andere Tabs zeigen sofort die neuen Ergebnisse.</p>
+          <p><strong>Neu in v2:</strong> Tab <strong>WP-Effizienz</strong> mit Carnot-basierten COP-Kurven über Temperaturhub, Außentemperatur und Vorlauftemperatur — zur tieferen Analyse der Wärmepumpen-Eigenschaften.</p>
         </div>
       </div>
     </div>
@@ -718,6 +759,73 @@
     </div>
   </section>
 
+  <!-- TAB: WP-EFFIZIENZ -->
+  <section class="panel" id="panel-wp-eff">
+    <div class="card">
+      <h2>Direktvergleich: COP über Hub</h2>
+      <div class="meta">Hub = T<sub>Vorlauf</sub> − T<sub>Quelle</sub>. SWWP hat stabile Sole (~0°C ±5K), LWWP variiert ±20K mit Außenluft. Carnot-basierte Modellierung mit Gütegrad ≈ 0,45.</div>
+      <div class="chart-frame tall"><canvas id="chart-cop-hub"></canvas></div>
+      <div class="desc" style="margin-top: 12px;">
+        <p>Beide Maschinen folgen näherungsweise einer Carnot-artigen Kurve, der Vorteil der SWWP ist nicht intrinsisch — es liegt schlicht daran, dass die Solequelle bei -3°C Außentemperatur noch ~0°C liefert, während die Luft-WP mit -3°C arbeiten muss. Bei gleichem Hub liegen LWWP und SWWP nahe beieinander.</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 16px;">
+      <h2>COP über Außentemperatur · bei konstanter Vorlauftemperatur</h2>
+      <div class="meta">Wie der COP über das Wetter zerfällt — die SWWP ignoriert Außentemperaturen weitgehend, die LWWP leidet stark.</div>
+      <div class="scenario-controls">
+        <label>VL Szenario A:
+          <input type="number" id="vl-a" value="35" step="5" min="25" max="80">°C
+          <span class="scenario-tag">Neubau / FBH</span>
+        </label>
+        <label>VL Szenario B:
+          <input type="number" id="vl-b" value="65" step="5" min="25" max="80">°C
+          <span class="scenario-tag">Altbau / Heizkörper</span>
+        </label>
+      </div>
+      <div class="chart-frame tall"><canvas id="chart-cop-tout"></canvas></div>
+      <div class="desc" style="margin-top: 12px;">
+        <p>Bei <strong>35°C Vorlauf</strong> (FBH-Neubau) ist die LWWP konkurrenzfähig, mit COP ~3,5 selbst bei 0°C Außentemperatur. Bei <strong>65°C Vorlauf</strong> (Altbau-Heizkörper) bricht die LWWP unter 0°C weg — der Hub wird zu groß, die Maschine verbraucht so viel Strom wie ein Heizstab. Die SWWP bleibt vergleichsweise stabil.</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 16px;">
+      <h2>COP über Vorlauftemperatur · bei konstanter Außentemperatur</h2>
+      <div class="meta">Wie sich der COP mit jedem zusätzlichen °C VL verschlechtert — wichtig für die Frage Heizkörper-Tausch oder nicht.</div>
+      <div class="scenario-controls">
+        <label>T<sub>außen</sub> A:
+          <input type="number" id="tout-a" value="5" step="1" min="-15" max="15">°C
+          <span class="scenario-tag">Übergangszeit</span>
+        </label>
+        <label>T<sub>außen</sub> B:
+          <input type="number" id="tout-b" value="-12" step="1" min="-15" max="15">°C
+          <span class="scenario-tag">Auslegungstemp.</span>
+        </label>
+      </div>
+      <div class="chart-frame tall"><canvas id="chart-cop-vl"></canvas></div>
+      <div class="desc" style="margin-top: 12px;">
+        <p>Daumenregel: pro 1°C VL-Senkung gewinnt die Wärmepumpe ~2,5% COP. Von 65°C auf 55°C ist das ein Plus von ~25% Effizienz — der Grund, warum die Absenkung der Vorlauftemperatur (z.B. größere Heizkörper, hydraulischer Abgleich) oft mehr bringt als eine teurere WP-Variante.</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 16px;">
+      <h2>WW-Speichertemperatur · COP-Verlust</h2>
+      <div class="meta">Bei 60°C Speichertemperatur (Legionellenschutz) fällt der COP signifikant — daher die Sonderbetrachtung beim Warmwasser.</div>
+      <div class="chart-frame"><canvas id="chart-cop-ww"></canvas></div>
+      <div class="desc" style="margin-top: 12px;">
+        <p>Bei 35–40°C Vorlauf liefert die SWWP COP 4,5+. Sobald sie auf 60°C Speichertemperatur takten muss (Trinkwasserhygiene), fällt der COP auf ~3,0. Im Sommer hätte sie nur diese Aufgabe — kurze Takte mit schlechtem COP. Eine <strong>separate Brauchwasser-WP</strong> mit eigenem 300L-Speicher (SCOP ~3,5 aus Heizraumluft) entkoppelt das Problem komplett.</p>
+      </div>
+    </div>
+
+    <div class="card desc" style="margin-top: 16px;">
+      <h2>Modellannahmen</h2>
+      <p>Die COP-Kurven werden über das Carnot-Modell mit einem Gütegrad η<sub>i</sub> berechnet:</p>
+      <p style="font-family: 'SF Mono', monospace; font-size: 12px; padding: 10px 14px; background: var(--bg-soft); border-radius: 6px; color: var(--text);">COP = η<sub>i</sub> · (T<sub>VL</sub> + 273,15) / (T<sub>VL</sub> − T<sub>Quelle</sub>)</p>
+      <p>Gütegrade: <strong>SWWP B33</strong> η<sub>i</sub> = 0,50, <strong>SWWP A29</strong> η<sub>i</sub> = 0,47, <strong>LWWP Vaillant</strong> η<sub>i</sub> = 0,42. Wärmequellen-Annahme: Sole konstant 0°C (im Winter, ±5K übers Jahr), Luft = Außentemperatur (LWWP).</p>
+      <p>Vereinfachung: Reale Maschinen weichen davon ab durch Verdampfer-/Verflüssiger-Auslegung, Inverter-Modulation und Abtauverluste (LWWP bei -3 bis +3°C). Die Kurven sind eine pädagogische Näherung, keine Datenblatt-Replikation. Für die exakten Werte: <a href="https://keymark.eu/en/products/heatpumps/certified-products" target="_blank">Heat Pump Keymark</a></p>
+    </div>
+  </section>
+
   <!-- TAB: JAHRESSIMULATION -->
   <section class="panel" id="panel-sim">
     <div class="card">
@@ -756,11 +864,21 @@ const P = {
   Anteil_Holz: 0.70, Anteil_Backup: 0.30,
   Inflation_Oel: 0.04, Inflation_Strom: 0.02, Inflation_Holz: 0.025,
   PV_kWp: 10, PV_Yield: 950, PV_Self_Rate: 70,
+  // WP-Effizienz Szenarien
+  WP_VL_A: 35, WP_VL_B: 65,
+  WP_Tout_A: 5, WP_Tout_B: -12,
 };
 
 const COL = {
   holz: '#0F6E56', oel: '#993C1D', stab: '#D4A017',
   lwwp: '#BA7517', a29: '#5BA8E0', b33: '#185FA5'
+};
+
+// Carnot-Gütegrade je Maschine
+const ETA_C = {
+  b33: 0.50,
+  a29: 0.47,
+  lwwp: 0.42,
 };
 
 // CAPEX-Posten je System
@@ -772,6 +890,25 @@ const POSTS = {
   a29:  { Geraet: 14000, Quelle: 8000, Sole: 600, Strom: 1500, Backup: 800, Hydraulik: 2000, Install: 3500, Entsorgung: 1500 },
   b33:  { Geraet: 20000, Quelle: 10000, Sole: 700, Strom: 1500, Backup: 800, Hydraulik: 2000, Install: 3500, Entsorgung: 1500 },
 };
+
+// ============================================
+// CARNOT-COP MODEL
+// ============================================
+// COP = eta_i * (T_VL + 273.15) / (T_VL - T_Quelle)
+// Mit Cap nach unten bei 1.0 (Heizstab-Niveau) und nach oben bei 7.0 (realistische Obergrenze)
+function copCarnot(T_VL, T_Quelle, eta) {
+  const dT = T_VL - T_Quelle;
+  if (dT <= 0) return 7.0;
+  const cop = eta * (T_VL + 273.15) / dT;
+  return Math.max(1.0, Math.min(7.0, cop));
+}
+
+// Sole-Temperatur als Funktion der Außentemperatur (Erdwärme: dämpft sehr stark)
+// Sommer ~+5°C, Winter ~-3°C, in 1.5m Tiefe
+function solTempFromOutside(T_out) {
+  // Vereinfachung: Sole zwischen -3°C bei kalten Außenbedingungen und +5°C bei warmen
+  return Math.max(-5, Math.min(8, -1 + 0.15 * T_out));
+}
 
 // ============================================
 // CALCULATIONS · alle Berechnungen
@@ -898,6 +1035,12 @@ function setupInputs() {
   makeInput(grp('inputs-forecast'), 'Inflation_Oel', 'Ölpreis-Steigerung/a', '–', 0.01);
   makeInput(grp('inputs-forecast'), 'Inflation_Strom', 'Strompreis-Steigerung/a', '–', 0.01);
   makeInput(grp('inputs-forecast'), 'Inflation_Holz', 'Holzpreis-Steigerung/a', '–', 0.01);
+
+  // WP-Effizienz Szenarien-Inputs
+  document.getElementById('vl-a').addEventListener('input', e => { P.WP_VL_A = parseFloat(e.target.value) || 35; renderWpEff(); });
+  document.getElementById('vl-b').addEventListener('input', e => { P.WP_VL_B = parseFloat(e.target.value) || 65; renderWpEff(); });
+  document.getElementById('tout-a').addEventListener('input', e => { P.WP_Tout_A = parseFloat(e.target.value) || 5; renderWpEff(); });
+  document.getElementById('tout-b').addEventListener('input', e => { P.WP_Tout_B = parseFloat(e.target.value) || -12; renderWpEff(); });
 }
 
 // ============================================
@@ -1207,7 +1350,6 @@ function renderSoloVsMix() {
 }
 
 function renderForecast() {
-  // Energiepreise über 25 Jahre projiziert
   const horizon = 25;
   const years = Array.from({length: horizon + 1}, (_, i) => i);
   const oilPrices = years.map(y => P.P_Oel * Math.pow(1 + P.Inflation_Oel, y));
@@ -1239,7 +1381,6 @@ function renderForecast() {
   charts.forecast.data.datasets[2].data = holzPrices.map(v => +v.toFixed(0));
   charts.forecast.update('none');
 
-  // Wärmekosten je System über die Jahre
   const labels_kwh = years.map(y => 'Jahr ' + y);
   const ds_kwh = [
     { label: 'Holz', color: COL.holz, data: years.map(y => holzPrices[y] / (P.HW_Holz * P.Eta_Holz / 100)) },
@@ -1267,7 +1408,6 @@ function renderForecast() {
     charts.forecastKwh.update('none');
   }
 
-  // Kumulierte TCO mit Inflation · mit Förderung
   const r = calc();
   const horizon2 = 25;
   const years2 = Array.from({length: horizon2 + 1}, (_, i) => i);
@@ -1311,7 +1451,6 @@ function renderForecast() {
 }
 
 function renderPV() {
-  // Saisonales Mismatch (12 Monate)
   const months = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
   const yearProd = P.PV_kWp * P.PV_Yield;
   const seasonalProd = months.map((_, i) => {
@@ -1344,7 +1483,6 @@ function renderPV() {
   charts.pvSeas.data.datasets[1].data = seasonalHeat.map(Math.round);
   charts.pvSeas.update('none');
 
-  // PV Impact auf Heizkosten
   const r = calc();
   const labels = ['Holz', 'Öl', 'Heizstab', 'LWWP', 'SWWP A29', 'SWWP B33'];
   const keys = ['holz', 'oel', 'stab', 'lwwp', 'a29', 'b33'];
@@ -1376,14 +1514,12 @@ function renderPV() {
 }
 
 function renderWW() {
-  // Warmwasser-Strategien Vergleich
   const wwBedarf = 2200;
   const labels = ['BWWP Stiebel', 'FriWa Puffer', 'Heizstab direkt', 'SWWP B33 mit', 'SWWP A29 mit'];
-  // Annahme: BWWP SCOP 3.5, FriWa Puffer 65°C kostet wie Holz, Heizstab voll
   const opexBWWP = wwBedarf / 3.5 * P.P_Strom + 150 * P.P_Strom;
   const opexFriWa = wwBedarf * (P.P_Holz / (P.HW_Holz * P.Eta_Holz / 100));
   const opexStab = wwBedarf * P.P_Strom;
-  const opexB33ww = wwBedarf / 3.0 * P.P_Strom; // schlechterer COP bei 60°C
+  const opexB33ww = wwBedarf / 3.0 * P.P_Strom;
   const opexA29ww = wwBedarf / 2.9 * P.P_Strom;
 
   if (!charts.wwCost) {
@@ -1403,8 +1539,195 @@ function renderWW() {
   charts.wwCost.update('none');
 }
 
+// ============================================
+// WP-EFFIZIENZ TAB · NEU IN V2
+// ============================================
+function renderWpEff() {
+  // ---- 1) COP über HUB (T_VL - T_Quelle) ----
+  // Hub-Range: 15 K bis 80 K
+  const hubs = [];
+  for (let h = 15; h <= 80; h += 5) hubs.push(h);
+
+  // Wir fixieren T_VL = 35°C (FBH) und variieren T_Quelle, sodass Hub = T_VL - T_Quelle
+  // Das simuliert verschiedene Außenbedingungen / WP-Typen
+  // Alternativ kann man auch über T_VL variieren, aber dann ändert sich T_warm auch
+  // Standard: T_VL = 35°C als Bezug
+  const T_VL_ref = 35;
+  const cop_b33_hub = hubs.map(h => copCarnot(T_VL_ref, T_VL_ref - h, ETA_C.b33));
+  const cop_a29_hub = hubs.map(h => copCarnot(T_VL_ref, T_VL_ref - h, ETA_C.a29));
+  const cop_lwwp_hub = hubs.map(h => copCarnot(T_VL_ref, T_VL_ref - h, ETA_C.lwwp));
+
+  // SWWP nur in realistischem Bereich (Hub ~25-70K)
+  const cop_b33_filtered = cop_b33_hub.map((v, i) => (hubs[i] >= 25 && hubs[i] <= 70) ? v : null);
+  const cop_a29_filtered = cop_a29_hub.map((v, i) => (hubs[i] >= 25 && hubs[i] <= 70) ? v : null);
+  const cop_lwwp_filtered = cop_lwwp_hub.map((v, i) => (hubs[i] >= 15 && hubs[i] <= 80) ? v : null);
+
+  const stabLine = hubs.map(_ => 1.0);
+
+  if (!charts.copHub) {
+    charts.copHub = new Chart(document.getElementById('chart-cop-hub'), {
+      type: 'line',
+      data: { labels: hubs.map(h => h + ' K'), datasets: [
+        { label: 'SWWP B33', data: cop_b33_filtered, borderColor: COL.b33, backgroundColor: COL.b33, borderWidth: 2.5, pointRadius: 4, pointHoverRadius: 6, tension: 0.2, spanGaps: false },
+        { label: 'SWWP A29', data: cop_a29_filtered, borderColor: COL.a29, backgroundColor: COL.a29, borderWidth: 2.5, pointRadius: 4, pointHoverRadius: 6, tension: 0.2, spanGaps: false },
+        { label: 'LWWP Vaillant', data: cop_lwwp_filtered, borderColor: COL.lwwp, backgroundColor: COL.lwwp, borderWidth: 2.5, pointRadius: 4, pointHoverRadius: 6, tension: 0.2, spanGaps: false },
+        { label: 'Heizstab', data: stabLine, borderColor: COL.stab, backgroundColor: COL.stab, borderWidth: 1.8, borderDash: [5, 4], pointRadius: 0, tension: 0 },
+      ]},
+      options: { ...chartDefaults,
+        plugins: { ...chartDefaults.plugins,
+          legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, padding: 10, boxWidth: 18, boxHeight: 3 } },
+          tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => c.dataset.label + ': COP ' + fmt2(c.parsed.y) } }
+        },
+        interaction: { mode: 'index', intersect: false },
+        scales: {
+          y: { beginAtZero: true, max: 6, grid: gridStyle(), ticks: { ...tickFont(), stepSize: 1, callback: v => 'COP ' + v } },
+          x: { grid: { display: false }, title: { display: true, text: 'Temperaturhub (Vorlauf − Quelle)', font: { size: 11 } }, ticks: tickFont() }
+        }
+      }
+    });
+  } else {
+    charts.copHub.data.datasets[0].data = cop_b33_filtered;
+    charts.copHub.data.datasets[1].data = cop_a29_filtered;
+    charts.copHub.data.datasets[2].data = cop_lwwp_filtered;
+    charts.copHub.update('none');
+  }
+
+  // ---- 2) COP über Außentemperatur (bei konstantem VL) ----
+  const t_outs = [];
+  for (let t = -15; t <= 15; t++) t_outs.push(t);
+
+  const buildCopOverTout = (T_VL) => {
+    return {
+      lwwp: t_outs.map(t => copCarnot(T_VL, t, ETA_C.lwwp)),
+      a29: t_outs.map(t => copCarnot(T_VL, solTempFromOutside(t), ETA_C.a29)),
+      b33: t_outs.map(t => copCarnot(T_VL, solTempFromOutside(t), ETA_C.b33)),
+    };
+  };
+
+  const datA = buildCopOverTout(P.WP_VL_A);
+  const datB = buildCopOverTout(P.WP_VL_B);
+
+  const dsTout = [
+    { label: `SWWP B33 · VL ${P.WP_VL_A}°C`, data: datA.b33, borderColor: COL.b33, borderWidth: 2.5, pointRadius: 0, tension: 0.2 },
+    { label: `SWWP A29 · VL ${P.WP_VL_A}°C`, data: datA.a29, borderColor: COL.a29, borderWidth: 2.5, pointRadius: 0, tension: 0.2 },
+    { label: `LWWP · VL ${P.WP_VL_A}°C`, data: datA.lwwp, borderColor: COL.lwwp, borderWidth: 2.5, pointRadius: 0, tension: 0.2 },
+    { label: `SWWP B33 · VL ${P.WP_VL_B}°C`, data: datB.b33, borderColor: COL.b33, borderWidth: 2, borderDash: [6, 4], pointRadius: 0, tension: 0.2 },
+    { label: `SWWP A29 · VL ${P.WP_VL_B}°C`, data: datB.a29, borderColor: COL.a29, borderWidth: 2, borderDash: [6, 4], pointRadius: 0, tension: 0.2 },
+    { label: `LWWP · VL ${P.WP_VL_B}°C`, data: datB.lwwp, borderColor: COL.lwwp, borderWidth: 2, borderDash: [6, 4], pointRadius: 0, tension: 0.2 },
+    { label: 'Heizstab', data: t_outs.map(_ => 1.0), borderColor: COL.stab, borderWidth: 1.5, borderDash: [3, 3], pointRadius: 0, tension: 0 },
+  ];
+
+  if (!charts.copTout) {
+    charts.copTout = new Chart(document.getElementById('chart-cop-tout'), {
+      type: 'line',
+      data: { labels: t_outs.map(t => t + '°C'), datasets: dsTout.map(d => ({ ...d, data: d.data.map(v => +v.toFixed(2)) })) },
+      options: { ...chartDefaults,
+        plugins: { ...chartDefaults.plugins,
+          legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, padding: 8, boxWidth: 20, boxHeight: 2 } },
+          tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => c.dataset.label + ': COP ' + fmt2(c.parsed.y) } }
+        },
+        interaction: { mode: 'index', intersect: false },
+        scales: {
+          y: { beginAtZero: true, max: 7, grid: gridStyle(), ticks: { ...tickFont(), stepSize: 1, callback: v => 'COP ' + v } },
+          x: { grid: { display: false }, title: { display: true, text: 'Außentemperatur', font: { size: 11 } }, ticks: { ...tickFont(), maxTicksLimit: 16 } }
+        }
+      }
+    });
+  } else {
+    charts.copTout.data.datasets = dsTout.map(d => ({ ...d, data: d.data.map(v => +v.toFixed(2)) }));
+    charts.copTout.update('none');
+  }
+
+  // ---- 3) COP über Vorlauftemperatur (bei konstanter Außentemperatur) ----
+  const vls = [];
+  for (let v = 25; v <= 75; v += 2) vls.push(v);
+
+  const buildCopOverVL = (T_out) => {
+    return {
+      lwwp: vls.map(vl => copCarnot(vl, T_out, ETA_C.lwwp)),
+      a29: vls.map(vl => copCarnot(vl, solTempFromOutside(T_out), ETA_C.a29)),
+      b33: vls.map(vl => copCarnot(vl, solTempFromOutside(T_out), ETA_C.b33)),
+    };
+  };
+
+  const vDatA = buildCopOverVL(P.WP_Tout_A);
+  const vDatB = buildCopOverVL(P.WP_Tout_B);
+
+  const dsVl = [
+    { label: `SWWP B33 · ${P.WP_Tout_A}°C außen`, data: vDatA.b33, borderColor: COL.b33, borderWidth: 2.5, pointRadius: 0, tension: 0.2 },
+    { label: `SWWP A29 · ${P.WP_Tout_A}°C außen`, data: vDatA.a29, borderColor: COL.a29, borderWidth: 2.5, pointRadius: 0, tension: 0.2 },
+    { label: `LWWP · ${P.WP_Tout_A}°C außen`, data: vDatA.lwwp, borderColor: COL.lwwp, borderWidth: 2.5, pointRadius: 0, tension: 0.2 },
+    { label: `SWWP B33 · ${P.WP_Tout_B}°C außen`, data: vDatB.b33, borderColor: COL.b33, borderWidth: 2, borderDash: [6, 4], pointRadius: 0, tension: 0.2 },
+    { label: `SWWP A29 · ${P.WP_Tout_B}°C außen`, data: vDatB.a29, borderColor: COL.a29, borderWidth: 2, borderDash: [6, 4], pointRadius: 0, tension: 0.2 },
+    { label: `LWWP · ${P.WP_Tout_B}°C außen`, data: vDatB.lwwp, borderColor: COL.lwwp, borderWidth: 2, borderDash: [6, 4], pointRadius: 0, tension: 0.2 },
+    { label: 'Heizstab', data: vls.map(_ => 1.0), borderColor: COL.stab, borderWidth: 1.5, borderDash: [3, 3], pointRadius: 0, tension: 0 },
+  ];
+
+  if (!charts.copVl) {
+    charts.copVl = new Chart(document.getElementById('chart-cop-vl'), {
+      type: 'line',
+      data: { labels: vls.map(v => v + '°C'), datasets: dsVl.map(d => ({ ...d, data: d.data.map(v => +v.toFixed(2)) })) },
+      options: { ...chartDefaults,
+        plugins: { ...chartDefaults.plugins,
+          legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, padding: 8, boxWidth: 20, boxHeight: 2 } },
+          tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => c.dataset.label + ': COP ' + fmt2(c.parsed.y) } }
+        },
+        interaction: { mode: 'index', intersect: false },
+        scales: {
+          y: { beginAtZero: true, max: 7, grid: gridStyle(), ticks: { ...tickFont(), stepSize: 1, callback: v => 'COP ' + v } },
+          x: { grid: { display: false }, title: { display: true, text: 'Vorlauftemperatur', font: { size: 11 } }, ticks: { ...tickFont(), maxTicksLimit: 14 } }
+        }
+      }
+    });
+  } else {
+    charts.copVl.data.datasets = dsVl.map(d => ({ ...d, data: d.data.map(v => +v.toFixed(2)) }));
+    charts.copVl.update('none');
+  }
+
+  // ---- 4) WW-Speichertemperatur · COP-Verlust ----
+  // Bei T_out = -3°C, T_Quelle = solTempFromOutside(-3)
+  const ww_temps = [];
+  for (let t = 30; t <= 65; t += 2.5) ww_temps.push(t);
+
+  const T_quelle_ww = solTempFromOutside(0); // mittlere Bedingung
+  const T_luft_ww = 5; // kalter Tag für LWWP
+  const ww_b33 = ww_temps.map(t => copCarnot(t, T_quelle_ww, ETA_C.b33));
+  const ww_a29 = ww_temps.map(t => copCarnot(t, T_quelle_ww, ETA_C.a29));
+  const ww_lwwp = ww_temps.map(t => copCarnot(t, T_luft_ww, ETA_C.lwwp));
+  const ww_bwwp = ww_temps.map(t => copCarnot(t, 18, 0.40)); // Brauchwasser-WP aus 18°C Heizraumluft
+
+  const dsWw = [
+    { label: 'SWWP B33', data: ww_b33, borderColor: COL.b33, borderWidth: 2.5, pointRadius: 0, tension: 0.2 },
+    { label: 'SWWP A29', data: ww_a29, borderColor: COL.a29, borderWidth: 2.5, pointRadius: 0, tension: 0.2 },
+    { label: 'LWWP (5°C außen)', data: ww_lwwp, borderColor: COL.lwwp, borderWidth: 2.5, pointRadius: 0, tension: 0.2 },
+    { label: 'BWWP (Heizraum 18°C)', data: ww_bwwp, borderColor: COL.a29, borderWidth: 2, borderDash: [6, 4], pointRadius: 0, tension: 0.2 },
+    { label: 'Heizstab', data: ww_temps.map(_ => 1.0), borderColor: COL.stab, borderWidth: 1.5, borderDash: [3, 3], pointRadius: 0, tension: 0 },
+  ];
+
+  if (!charts.copWw) {
+    charts.copWw = new Chart(document.getElementById('chart-cop-ww'), {
+      type: 'line',
+      data: { labels: ww_temps.map(t => t + '°C'), datasets: dsWw.map(d => ({ ...d, data: d.data.map(v => +v.toFixed(2)) })) },
+      options: { ...chartDefaults,
+        plugins: { ...chartDefaults.plugins,
+          legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, padding: 8, boxWidth: 20, boxHeight: 2 } },
+          tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => c.dataset.label + ': COP ' + fmt2(c.parsed.y) } },
+          annotation: undefined
+        },
+        interaction: { mode: 'index', intersect: false },
+        scales: {
+          y: { beginAtZero: true, max: 6, grid: gridStyle(), ticks: { ...tickFont(), stepSize: 1, callback: v => 'COP ' + v } },
+          x: { grid: { display: false }, title: { display: true, text: 'WW-Speichertemperatur', font: { size: 11 } }, ticks: tickFont() }
+        }
+      }
+    });
+  } else {
+    charts.copWw.data.datasets = dsWw.map(d => ({ ...d, data: d.data.map(v => +v.toFixed(2)) }));
+    charts.copWw.update('none');
+  }
+}
+
 function renderSimulation() {
-  // Tageskosten nach Außentemperatur
   const T_NORM = -12, T_HEIZGRENZE = 17, LAST_MAX = 27.8;
   const heizlast = T => Math.max(0, LAST_MAX * (T_HEIZGRENZE - T) / (T_HEIZGRENZE - T_NORM));
   const cop = (T, Tmin, Tmax, copMin, copMax) => T <= Tmin ? copMin : T >= Tmax ? copMax : copMin + (T - Tmin) * (copMax - copMin) / (Tmax - Tmin);
@@ -1454,7 +1777,6 @@ function renderSimulation() {
     charts.dayTemp.update('none');
   }
 
-  // Break-Even: bei welchem Backup-Anteil wird X günstiger als Solo Holz?
   const horizon = 25;
   const anteile = [];
   for (let a = 0; a <= 100; a += 5) anteile.push(a);
@@ -1494,7 +1816,6 @@ function renderSimulation() {
     charts.breakEven.update('none');
   }
 
-  // Heizlast-Verteilung übers Jahr (sinusförmig)
   const days = Array.from({length: 365}, (_, i) => i);
   const dailyLoad = days.map(d => {
     const T = 9 - 12 * Math.cos(2 * Math.PI * (d - 30) / 365);
@@ -1545,6 +1866,7 @@ function renderAll() {
   renderForecast();
   renderPV();
   renderWW();
+  renderWpEff();
   renderSimulation();
 }
 
@@ -1556,7 +1878,6 @@ document.getElementById('tabs').addEventListener('click', e => {
   const tab = e.target.dataset.tab;
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + tab));
-  // Charts in dem Tab evtl. neu rendern (für korrekte Größenberechnung)
   setTimeout(() => Object.values(charts).forEach(c => c.resize && c.resize()), 50);
 });
 
