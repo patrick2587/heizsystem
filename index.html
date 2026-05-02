@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Heizsystem-Vergleich v3</title>
+<title>Heizsystem · Stundensimulation 8760h</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
   :root {
@@ -25,6 +25,11 @@
     --col-ok: #0F6E56;
     --col-warn: #C77700;
     --col-bad: #B83A1A;
+    --col-tout: #5f5e5a;
+    --col-vl: #C77700;
+    --col-buf-top: #B83A1A;
+    --col-buf-mid: #D4A017;
+    --col-buf-bot: #5BA8E0;
     --radius: 12px;
     --radius-sm: 8px;
   }
@@ -52,171 +57,128 @@
   .grid-2 { grid-template-columns: 1fr 1fr; }
   .grid-3 { grid-template-columns: repeat(3, 1fr); }
   .grid-4 { grid-template-columns: repeat(4, 1fr); }
-  @media (max-width: 900px) {
-    .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
-  }
+  @media (max-width: 900px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } }
   .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
   .card h2 { font-size: 14px; font-weight: 500; margin: 0 0 4px; color: var(--text); letter-spacing: 0.2px; }
   .card .meta { font-size: 12px; color: var(--text-mute); margin-bottom: 14px; }
   .chart-frame { position: relative; height: 300px; margin-top: 8px; }
   .chart-frame.tall { height: 380px; }
   .chart-frame.short { height: 220px; }
-  .legend { display: flex; flex-wrap: wrap; gap: 10px 16px; font-size: 11px; color: var(--text-soft); margin-bottom: 8px; }
-  .legend-item { display: flex; align-items: center; gap: 6px; }
-  .legend-swatch { width: 14px; height: 3px; border-radius: 2px; }
   .input-group { display: grid; grid-template-columns: 1fr 110px 60px; gap: 8px 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border-soft); }
   .input-group:last-child { border-bottom: none; }
   .input-group label { font-size: 12px; color: var(--text-soft); }
-  .input-group label .name { font-size: 10px; color: var(--text-mute); margin-left: 6px; font-family: 'SF Mono', 'Monaco', 'Menlo', monospace; }
+  .input-group label .name { font-size: 10px; color: var(--text-mute); margin-left: 6px; font-family: 'SF Mono', monospace; }
   .input-group input { height: 30px; padding: 0 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card); font-size: 13px; font-family: inherit; color: var(--text); text-align: right; }
   .input-group input:focus { outline: 2px solid var(--accent); outline-offset: -2px; border-color: transparent; }
   .input-group .unit { font-size: 11px; color: var(--text-mute); }
   .group-title { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-mute); margin: 0 0 8px; padding-top: 12px; }
   .group-title:first-child { padding-top: 0; }
-  .system-card { border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; background: var(--bg-card); border-left-width: 3px; }
-  .system-card.holz { border-left-color: var(--col-holz); }
-  .system-card.oel { border-left-color: var(--col-oel); }
-  .system-card.stab { border-left-color: var(--col-stab); }
+  .system-card { border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; background: var(--bg-card); border-left-width: 3px; }
   .system-card.lwwp { border-left-color: var(--col-lwwp); }
   .system-card.a29 { border-left-color: var(--col-a29); }
   .system-card.b33 { border-left-color: var(--col-b33); }
-  .system-card h3 { margin: 0 0 4px; font-size: 14px; font-weight: 500; }
-  .system-card .system-meta { font-size: 11px; color: var(--text-mute); margin-bottom: 12px; }
-  .system-card .specs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; font-size: 11px; margin-bottom: 12px; }
-  .system-card .specs .key { color: var(--text-mute); }
-  .system-card .specs .val { color: var(--text); font-variant-numeric: tabular-nums; text-align: right; }
-  .system-card .price-row { display: flex; justify-content: space-between; padding-top: 10px; border-top: 1px solid var(--border-soft); font-size: 12px; }
-  .system-card .price-row .price { font-variant-numeric: tabular-nums; font-weight: 500; }
-  .system-card .link { display: inline-block; font-size: 11px; color: var(--accent); text-decoration: none; margin-top: 8px; }
-  .system-card .link:hover { text-decoration: underline; }
-  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
-  .stat { background: var(--bg-soft); padding: 14px 16px; border-radius: var(--radius-sm); }
-  .stat .lbl { font-size: 11px; color: var(--text-mute); margin-bottom: 4px; }
-  .stat .val { font-size: 20px; font-weight: 500; font-variant-numeric: tabular-nums; line-height: 1.1; }
-  .stat .sub { font-size: 11px; color: var(--text-soft); margin-top: 4px; }
-  .desc { font-size: 13px; line-height: 1.65; color: var(--text-soft); }
-  .desc strong { color: var(--text); font-weight: 500; }
-  .desc a { color: var(--accent); text-decoration: none; }
-  .desc a:hover { text-decoration: underline; }
-  .pill { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 10px; font-weight: 500; background: var(--bg-soft); color: var(--text-soft); }
+  .system-card.holz { border-left-color: var(--col-holz); }
+  .system-card.oel { border-left-color: var(--col-oel); }
+  .system-card h3 { margin: 0 0 4px; font-size: 13px; font-weight: 500; }
+  .system-card .system-meta { font-size: 11px; color: var(--text-mute); margin-bottom: 10px; }
+  .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; font-size: 11px; }
+  .kpi-grid .key { color: var(--text-mute); }
+  .kpi-grid .val { color: var(--text); font-variant-numeric: tabular-nums; text-align: right; font-weight: 500; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 10px; font-weight: 500; }
   .pill.ok { background: rgba(15,110,86,0.12); color: var(--col-ok); }
   .pill.warn { background: rgba(199,119,0,0.13); color: var(--col-warn); }
   .pill.bad { background: rgba(184,58,26,0.13); color: var(--col-bad); }
-  .schema { background: var(--bg-soft); border-radius: var(--radius); padding: 24px; }
-  .links-list { margin: 0; padding: 0; list-style: none; }
-  .links-list li { padding: 4px 0; font-size: 12px; }
-  .links-list a { color: var(--accent); text-decoration: none; }
-  .links-list a:hover { text-decoration: underline; }
-  .links-list .ref { color: var(--text-mute); font-size: 11px; margin-left: 8px; }
-  .scenario-controls { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; padding: 10px 14px; background: var(--bg-soft); border-radius: var(--radius-sm); }
-  .scenario-controls label { font-size: 12px; color: var(--text-soft); display: flex; align-items: center; gap: 6px; }
-  .scenario-controls input[type="number"] { width: 70px; height: 28px; padding: 0 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card); font-size: 12px; font-family: inherit; color: var(--text); text-align: right; }
-  .scenario-controls input[type="number"]:focus { outline: 2px solid var(--accent); outline-offset: -2px; border-color: transparent; }
-  .scenario-tag { font-size: 11px; color: var(--text-mute); margin-left: 4px; }
-  .perf-summary { display: grid; grid-template-columns: 80px 1fr 1fr 1fr; gap: 4px 14px; font-size: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-soft); align-items: center; }
-  .perf-summary:first-child { border-top: 1px solid var(--border-soft); padding-top: 12px; }
-  .perf-summary .name { font-weight: 500; }
-  .perf-summary .lbl { font-size: 10px; color: var(--text-mute); margin-bottom: 2px; }
-  .perf-summary .val { font-variant-numeric: tabular-nums; }
+  .desc { font-size: 13px; line-height: 1.65; color: var(--text-soft); }
+  .desc strong { color: var(--text); font-weight: 500; }
+  .desc code { font-family: 'SF Mono', monospace; font-size: 12px; background: var(--bg-soft); padding: 1px 6px; border-radius: 4px; color: var(--text); }
+  .controls-row { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; padding: 12px 16px; background: var(--bg-soft); border-radius: var(--radius-sm); margin-bottom: 14px; }
+  .controls-row label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-soft); }
+  .controls-row select, .controls-row input[type="number"] { height: 30px; padding: 0 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card); font-size: 12px; font-family: inherit; color: var(--text); }
+  .controls-row select { min-width: 140px; }
+  .controls-row input[type="number"] { width: 80px; text-align: right; }
+  .controls-row .label-tag { font-size: 11px; color: var(--text-mute); }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px 16px; font-size: 11px; color: var(--text-soft); margin-bottom: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-swatch { width: 14px; height: 3px; border-radius: 2px; }
+  .schema-block { font-family: 'SF Mono', monospace; font-size: 11px; line-height: 1.7; color: var(--text-soft); background: var(--bg-soft); padding: 14px 16px; border-radius: var(--radius-sm); white-space: pre; overflow-x: auto; }
+  .progress-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 8px; }
+  .progress-bar .fill { height: 100%; background: var(--accent); transition: width 0.2s; }
 </style>
 </head>
 <body>
 <div class="app">
   <header>
-    <h1>Heizsystem-Vergleich <span style="color: var(--text-mute); font-size: 16px; margin-left: 6px;">v3</span></h1>
-    <span class="sub-title">Heizkurven-basierte WP-Performance · 6 Erzeuger im Vergleich</span>
+    <h1>Heizsystem · Stundensimulation</h1>
+    <span class="sub-title">8760h · 3-Schicht-Puffer · Bivalent-Modus · Carnot-WP</span>
   </header>
 
   <nav class="tabs" id="tabs">
-    <button class="tab active" data-tab="overview">Übersicht</button>
+    <button class="tab active" data-tab="overview">Modell</button>
     <button class="tab" data-tab="params">Parameter</button>
-    <button class="tab" data-tab="heizkurve">Heizkurve</button>
-    <button class="tab" data-tab="capex">Anschaffung</button>
-    <button class="tab" data-tab="energy">Wärmekosten</button>
-    <button class="tab" data-tab="solo">Solo-Betrieb</button>
-    <button class="tab" data-tab="mix">Mischbetrieb</button>
-    <button class="tab" data-tab="forecast">Prognose 2035</button>
-    <button class="tab" data-tab="pv">PV-Einfluss</button>
-    <button class="tab" data-tab="ww">Warmwasser</button>
-    <button class="tab" data-tab="wp-eff">WP-Effizienz</button>
-    <button class="tab" data-tab="sim">Jahressimulation</button>
+    <button class="tab" data-tab="weather">Wetter & Last</button>
+    <button class="tab" data-tab="results">Ergebnisse</button>
+    <button class="tab" data-tab="timeseries">Zeitreihen</button>
+    <button class="tab" data-tab="puffer">Pufferdynamik</button>
+    <button class="tab" data-tab="bivalent">Bivalent-Analyse</button>
   </nav>
 
   <!-- TAB: ÜBERSICHT -->
   <section class="panel active" id="panel-overview">
     <div class="grid grid-2">
       <div class="card">
-        <h2>Anlagenschema</h2>
-        <div class="meta">Sechs Erzeuger speisen oben in den 4000 L Pufferspeicher. <strong>Beide Wohneinheiten hängen am gemeinsamen Puffer</strong> — die Quelle muss VL für den Altbau (65°C) liefern, WE2 wird über Mischer auf 35°C runtergeregelt.</div>
-        <div class="schema">
-          <svg viewBox="0 0 600 360" style="width: 100%; height: auto;" role="img" aria-label="Anlagenschema">
-            <g font-size="9" fill="#999" font-weight="500" letter-spacing="1">
-              <text x="80" y="14" text-anchor="middle">ERZEUGER</text>
-              <text x="300" y="14" text-anchor="middle">SPEICHER</text>
-              <text x="520" y="14" text-anchor="middle">VERBRAUCHER</text>
-            </g>
-            <g stroke="#aaa" stroke-width="1.2" fill="none" marker-end="url(#arr)">
-              <path d="M 150 48 L 226 76"/>
-              <path d="M 150 105 L 226 90"/>
-              <path d="M 150 162 L 226 104"/>
-              <path d="M 150 219 L 226 118"/>
-              <path d="M 150 276 L 226 132"/>
-              <path d="M 374 90 L 450 116"/>
-              <path d="M 374 195 L 450 218"/>
-            </g>
-            <defs>
-              <marker id="arr" viewBox="0 0 10 10" markerWidth="6" markerHeight="6" refX="9" refY="5" orient="auto">
-                <path d="M 0 0 L 10 5 L 0 10 z" fill="#aaa"/>
-              </marker>
-            </defs>
-            <g><rect x="10" y="22" width="140" height="52" rx="8" fill="white" stroke="#993C1D" stroke-width="1.4"/><text x="80" y="44" text-anchor="middle" font-size="12" font-weight="500">Vitola Biferral</text><text x="80" y="60" text-anchor="middle" font-size="10" fill="#5f5f5f">27 kW · η 97% · 1994</text></g>
-            <g><rect x="10" y="79" width="140" height="52" rx="8" fill="white" stroke="#0F6E56" stroke-width="1.4"/><text x="80" y="101" text-anchor="middle" font-size="12" font-weight="500">Solo Innova 50</text><text x="80" y="117" text-anchor="middle" font-size="10" fill="#5f5f5f">48 kW · η 90% · 2004</text></g>
-            <g><rect x="10" y="136" width="140" height="52" rx="8" fill="white" stroke="#D4A017" stroke-width="1.4"/><text x="80" y="158" text-anchor="middle" font-size="12" font-weight="500">Heizstab</text><text x="80" y="174" text-anchor="middle" font-size="10" fill="#5f5f5f">36 kW · 4× 9 kW</text></g>
-            <g><rect x="10" y="193" width="140" height="52" rx="8" fill="white" stroke="#BA7517" stroke-width="1.4"/><text x="80" y="215" text-anchor="middle" font-size="12" font-weight="500">LWWP Vaillant</text><text x="80" y="231" text-anchor="middle" font-size="10" fill="#5f5f5f">VL max 70°C · η_C 0,42</text></g>
-            <g><rect x="10" y="250" width="140" height="52" rx="8" fill="white" stroke="#185FA5" stroke-width="1.4"/><text x="80" y="272" text-anchor="middle" font-size="12" font-weight="500">SWWP A29 / B33</text><text x="80" y="288" text-anchor="middle" font-size="10" fill="#5f5f5f">VL max 60 / 73°C</text></g>
-            <g>
-              <rect x="230" y="20" width="140" height="296" rx="10" fill="white" stroke="#ccc"/>
-              <text x="300" y="38" text-anchor="middle" font-size="12" font-weight="500">Pufferspeicher</text>
-              <text x="300" y="52" text-anchor="middle" font-size="9" fill="#5f5f5f">4 × 1000 L</text>
-              <g><rect x="244" y="64" width="112" height="44" fill="#A32D2D"/><rect x="244" y="108" width="112" height="44" fill="#E24B4A"/><rect x="244" y="152" width="112" height="44" fill="#EF9F27"/><rect x="244" y="196" width="112" height="44" fill="#85B7EB"/><rect x="244" y="240" width="112" height="44" fill="#185FA5"/><rect x="244" y="64" width="112" height="220" fill="none" stroke="#666" stroke-width="0.5"/></g>
-              <text x="240" y="89" text-anchor="end" font-size="8" fill="#5f5f5f">85°C</text>
-              <text x="240" y="177" text-anchor="end" font-size="8" fill="#5f5f5f">55°C</text>
-              <text x="240" y="265" text-anchor="end" font-size="8" fill="#5f5f5f">30°C</text>
-              <text x="300" y="304" text-anchor="middle" font-size="9" fill="#5f5f5f">20 Schichten · je 200 L</text>
-            </g>
-            <g><rect x="450" y="80" width="140" height="80" rx="8" fill="white" stroke="#aaa"/><text x="520" y="106" text-anchor="middle" font-size="12" font-weight="500">WE 1 Altbau</text><text x="520" y="122" text-anchor="middle" font-size="10" fill="#5f5f5f">270 m² · Klasse F</text><text x="520" y="138" text-anchor="middle" font-size="10" fill="#5f5f5f">22,1 kW · VL 65°C</text><text x="520" y="154" text-anchor="middle" font-size="10" fill="#888">46.500 kWh/a</text></g>
-            <g><rect x="450" y="180" width="140" height="76" rx="8" fill="white" stroke="#aaa"/><text x="520" y="206" text-anchor="middle" font-size="12" font-weight="500">WE 2 Neubau</text><text x="520" y="222" text-anchor="middle" font-size="10" fill="#5f5f5f">130 m² · Klasse C</text><text x="520" y="238" text-anchor="middle" font-size="10" fill="#5f5f5f">5,7 kW · VL 35°C (Mischer)</text><text x="520" y="254" text-anchor="middle" font-size="10" fill="#888">12.000 kWh/a</text></g>
-          </svg>
-        </div>
+        <h2>Simulationsstruktur</h2>
+        <div class="meta">Stündliche Energiebilanz, t = 0 ... 8759. Alle Größen sind diskrete Zeitreihen X(t).</div>
+<div class="schema-block">Klima
+  T_aus(t)            Außentemperatur
+  ↓
+Gebäude (WE1, WE2)
+  Q̇_heiz_i(t) = UA_i · (T_soll_i(t) − T_aus(t))
+  VL_soll_i(t) ← Heizkurve
+  ↓
+Aggregation
+  Q̇_last(t) = Q̇_WE1 + Q̇_WE2 + Q̇_WW(t)
+  VL_soll(t) = max(VL_WE1, VL_WE2, T_WW)
+  ↓
+Pufferspeicher (3 Schichten)
+  Entladung oben
+  Verluste in alle Schichten
+  Beladung oben oder mid
+  ↓
+Erzeuger
+  Q̇_max(T_aus, T_VL)
+  COP(T_VL, T_Quelle)
+  Bivalent-Heizstab wenn VL_soll > VL_max
+  ↓
+Bilanz
+  E_Strom, E_Öl, E_Holz
+  SCOP, Bivalent-%, Verluste-%</div>
       </div>
       <div class="card">
-        <h2>Beschreibung</h2>
-        <div class="meta">Worum geht es bei diesem Vergleich?</div>
+        <h2>Was diese Simulation tut</h2>
         <div class="desc">
-          <p>Das Anwesen umfasst zwei Wohneinheiten mit insgesamt <strong>58.500 kWh/a</strong> Heizwärmebedarf. Beide hängen am gemeinsamen 4000 L Pufferspeicher — der Erzeuger muss daher die Vorlauftemperatur des ungünstigsten Verbrauchers liefern (Altbau, 65°C bei -12°C). WE2 mischt sich auf 35°C runter.</p>
-          <p>Die Bestandsanlage besteht aus einem <strong>Holzvergaser BAXI Solo Innova 50</strong> (Bj. 2004) und einem <strong>Öl-Niedertemperaturkessel Viessmann Vitola Biferral RA</strong> (Bj. 1994). Aktuell läuft der Mischbetrieb mit ~650 L Heizöl pro Jahr (etwa 11% energetisch).</p>
-          <p><strong>Neu in v3:</strong> Die WP-Effizienz wird nicht mehr aus festen SCOPs berechnet, sondern <strong>physikalisch aus Heizkurve, Außentemperatur-Verteilung und Carnot-Modell</strong>. Damit zeigt sich direkt, welche WP die Altbau-Anforderung sauber bedient — und welche in den Bivalent-Modus mit Heizstab fallen muss.</p>
-          <p>Alle Berechnungen laufen reaktiv. Wenn du die Auslegungs-Vorlauftemperatur im Tab Parameter änderst (z.B. nach Heizkörper-Tausch von 65°C auf 50°C), siehst du sofort wie sich SCOPs und TCOs verändern.</p>
+          <p>Die Simulation läuft <strong>stündlich über ein synthetisches Jahr</strong> (8760 Schritte) für Mitteldeutschland. Sie simuliert Außentemperatur, Heizlast für beide Wohneinheiten getrennt, Vorlauftemperatur über die Heizkurve, Pufferdynamik mit drei Schichten und den Erzeuger-Betrieb.</p>
+          <p>Im Gegensatz zu einer einfachen SCOP-Schätzung berechnet sie für <strong>jede einzelne Stunde</strong> den COP am aktuellen Betriebspunkt, prüft VL-Limits und schaltet bei Bedarf den Heizstab zu. Daraus ergibt sich der <strong>echte Jahres-SCOP</strong> als Σ Q_WP / Σ E_WP statt einer Datenblatt-Annahme.</p>
+          <p><strong>Was modelliert ist:</strong> Klimaprofil mit Tag/Nacht und Kältewellen, getrennte WE1/WE2 mit eigenen UA und Heizkurven (gemeinsame VL-Anforderung), Warmwasserlast mit realistischem Tagesprofil, 3-Schicht-Puffer mit Verlusten, WP-Carnot-Modell mit Gütegrad und VL-Limit, Heizstab-Bivalent.</p>
+          <p><strong>Was fehlt</strong> (bewusste Vereinfachung): RC-Gebäudemodell (statisches UA reicht für Aussage), echte TMY-Wetterdaten (synthetisch ist deutlich näher an der Realität als Sinus), Inverter-Modulation und Takten (5–10% Effekt auf SCOP), Solargewinne, interne Lasten.</p>
+          <p>Mehr: <a href="https://www.dwd.de/DE/leistungen/testreferenzjahre/testreferenzjahre.html" target="_blank">DWD Testreferenzjahre</a> · <a href="https://www.vdi.de/richtlinien/details/vdi-4655-referenzlastprofile-von-wohngebaeuden-fuer-strom-heizung-und-trinkwarmwasser-sowie-referenzerzeugungsprofile-fuer-fotovoltaikanlagen" target="_blank">VDI 4655 Lastprofile</a></p>
         </div>
       </div>
     </div>
 
     <div class="card" style="margin-top: 16px;">
-      <h2>Weiterführende Quellen</h2>
-      <div class="grid grid-2">
-        <ul class="links-list">
-          <li><a href="https://www.bafa.de/DE/Energie/Effiziente_Gebaeude/Foerderprogramm_im_Ueberblick/foerderprogramm_im_ueberblick_node.html" target="_blank">BAFA Förderprogramm BEG-EM</a><span class="ref">aktuelle Förderkonditionen</span></li>
-          <li><a href="https://www.viessmann.de/de/wohngebaeude/waermepumpe/sole-wasser-waermepumpen.html" target="_blank">Viessmann Vitocal Sole-Wasser-WP</a><span class="ref">Datenblätter A29/B33</span></li>
-          <li><a href="https://www.froeling.com/de/produkte/holzkessel/scheitholzkessel.html" target="_blank">Fröling Scheitholzkessel</a><span class="ref">S3 Turbo als Solo-Innova-Ersatz</span></li>
-          <li><a href="https://www.umweltbundesamt.de/themen/klima-energie/klimaschutz-energiepolitik-in-deutschland/co2-bepreisung" target="_blank">UBA · CO₂-Bepreisung</a><span class="ref">Pfad bis 2035</span></li>
-        </ul>
-        <ul class="links-list">
-          <li><a href="https://www.verbraucherzentrale.de/wissen/energie/heizen-und-warmwasser" target="_blank">Verbraucherzentrale Heizen</a><span class="ref">unabhängige Beratung</span></li>
-          <li><a href="https://keymark.eu/en/products/heatpumps/certified-products" target="_blank">Heat Pump Keymark</a><span class="ref">zertifizierte WP-Daten</span></li>
-          <li><a href="https://www.bmwk-energiewende.de/EWD/Redaktion/Newsletter/2024/heizung.html" target="_blank">Gebäudeenergiegesetz GEG</a><span class="ref">65%-Regel und Übergangsfristen</span></li>
-          <li><a href="https://www.solarwirtschaft.de/datawall/uploads/2024/03/BSW_Faktenpapier_Solarwaerme.pdf" target="_blank">Solarwirtschaft · PV+WP</a><span class="ref">Synergie-Studie</span></li>
-        </ul>
+      <h2>Energiebilanz-Übersicht</h2>
+      <div class="meta">Jahressummen für das aktuell gewählte Wetterszenario, alle 5 Erzeuger-Optionen verglichen.</div>
+      <div class="grid grid-2" style="margin-bottom: 16px;">
+        <div class="card" style="background: var(--bg-soft); border: none;">
+          <div class="meta">Wärmebedarf (Heizung + WW + Pufferverluste)</div>
+          <div style="font-size: 28px; font-weight: 500; font-variant-numeric: tabular-nums;" id="kpi-q-total">– kWh/a</div>
+        </div>
+        <div class="card" style="background: var(--bg-soft); border: none;">
+          <div class="meta">davon Pufferverluste</div>
+          <div style="font-size: 28px; font-weight: 500; font-variant-numeric: tabular-nums;" id="kpi-q-loss">– kWh/a</div>
+        </div>
       </div>
+      <div class="grid grid-3" id="overview-cards"></div>
     </div>
   </section>
 
@@ -224,627 +186,598 @@
   <section class="panel" id="panel-params">
     <div class="grid grid-2">
       <div class="card">
-        <h2>Verbrauch & Brennstoffe</h2>
-        <div class="meta">Wärmebedarf, Holz- und Ölpreise</div>
-        <div class="group-title">Verbrauch</div>
-        <div id="inputs-verbrauch"></div>
-        <div class="group-title">Holz</div>
-        <div id="inputs-holz"></div>
-        <div class="group-title">Öl</div>
-        <div id="inputs-oel"></div>
-        <div class="group-title">Strom</div>
-        <div id="inputs-strom"></div>
+        <h2>Klima & Wetterszenario</h2>
+        <div class="meta">Synthetisches Jahr Mitteldeutschland, mit Tagesgang und stochastischen Kältewellen</div>
+        <div id="inputs-klima"></div>
       </div>
       <div class="card">
-        <h2>Heizkurve & Wärmepumpen</h2>
-        <div class="meta">SCOPs werden aus Heizkurve, Heizgradtage und Carnot-Modell berechnet — keine manuellen COP-Eingaben mehr.</div>
-        <div class="group-title">Heizkurve (gemeinsamer Puffer)</div>
-        <div id="inputs-heizkurve"></div>
-        <div class="group-title">Heizstab</div>
-        <div id="inputs-stab"></div>
-        <div class="group-title">Berechnete WP-Performance</div>
-        <div id="wp-perf-summary"></div>
+        <h2>Gebäude WE1 (Altbau)</h2>
+        <div class="meta">Norm-Heizlast bei T_Norm, daraus UA berechnet</div>
+        <div id="inputs-we1"></div>
       </div>
     </div>
     <div class="grid grid-2" style="margin-top: 16px;">
       <div class="card">
-        <h2>Förderung BAFA / BEG</h2>
-        <div class="meta">Maximaler Förderbetrag und Schalter</div>
-        <div id="inputs-foerder"></div>
+        <h2>Gebäude WE2 (Neubau)</h2>
+        <div class="meta">Niedertemperatur über Mischer aus Puffer</div>
+        <div id="inputs-we2"></div>
       </div>
       <div class="card">
-        <h2>Mischbetrieb-Anteile</h2>
-        <div class="meta">Aufteilung Holzvergaser vs. zweites System</div>
-        <div id="inputs-mix"></div>
-        <div class="group-title">Prognose 2035</div>
-        <div id="inputs-forecast"></div>
+        <h2>Warmwasser & Pufferspeicher</h2>
+        <div id="inputs-ww"></div>
+        <div class="group-title">Pufferspeicher</div>
+        <div id="inputs-puffer"></div>
       </div>
+    </div>
+    <div class="card" style="margin-top: 16px;">
+      <h2>Energiepreise</h2>
+      <div class="meta">Für die Wirtschaftlichkeitsrechnung in den Ergebnissen</div>
+      <div class="grid grid-3"><div id="inputs-preise-1"></div><div id="inputs-preise-2"></div><div id="inputs-preise-3"></div></div>
     </div>
   </section>
 
-  <!-- TAB: HEIZKURVE -->
-  <section class="panel" id="panel-heizkurve">
+  <!-- TAB: WETTER & LAST -->
+  <section class="panel" id="panel-weather">
     <div class="card">
-      <h2>Heizkurve · Vorlauftemperatur über Außentemperatur</h2>
-      <div class="meta">Beide WE hängen am gemeinsamen Puffer — die WP muss die VL des Altbaus liefern (Auslegung <span id="vl-aus-display">65</span>°C bei <span id="t-norm-display">-12</span>°C). Horizontale Linien zeigen die VL-Limits der drei WPs. Wo die Heizkurve ein Limit überschreitet, beginnt der Bivalent-Betrieb mit Heizstab.</div>
+      <h2>Außentemperatur · ganzes Jahr</h2>
+      <div class="meta">Synthetisches Wetter mit Tagesgang ±4K und stochastischen Kältewellen. Jährliche Extreme: <span id="t-extremes">–</span></div>
+      <div class="chart-frame tall"><canvas id="chart-tout"></canvas></div>
+    </div>
+    <div class="card" style="margin-top: 16px;">
+      <h2>Heizlast WE1, WE2, Warmwasser</h2>
+      <div class="meta">Stündliche Wärmeabnahme aus dem Puffer, getrennt nach Quelle</div>
+      <div class="chart-frame tall"><canvas id="chart-loads"></canvas></div>
+    </div>
+    <div class="card" style="margin-top: 16px;">
+      <h2>Heizkurve · VL als Funktion der Außentemperatur</h2>
+      <div class="meta">VL_soll(T_aus) = max(Heizkurve_WE1, Heizkurve_WE2, T_WW+5). Die WE1-Kurve dominiert ab Heizgrenze, T_WW dominiert bei warmen Außentemperaturen ohne Heizbedarf.</div>
       <div class="chart-frame tall"><canvas id="chart-heizkurve"></canvas></div>
     </div>
 
     <div class="card" style="margin-top: 16px;">
-      <h2>WP-Performance unter aktueller Heizkurve</h2>
-      <div class="meta">Berechneter Jahres-SCOP, COP-Bandbreite über Heizperiode, Bivalent-Anteil mit Heizstab.</div>
-      <div class="grid grid-3" id="wp-perf-cards-large">
-        <div class="system-card lwwp">
-          <h3>LWWP Vaillant aroTHERM</h3>
-          <div class="system-meta">Luft-Wasser · η_Carnot 0,42 · VL max 70°C</div>
-          <div class="specs">
-            <span class="key">SCOP berechnet</span><span class="val" id="perf-lwwp-scop">–</span>
-            <span class="key">COP min (kalt)</span><span class="val" id="perf-lwwp-min">–</span>
-            <span class="key">COP max (mild)</span><span class="val" id="perf-lwwp-max">–</span>
-            <span class="key">Heizstab-Anteil</span><span class="val" id="perf-lwwp-stab">–</span>
-          </div>
-          <div class="price-row"><span>Status</span><span id="perf-lwwp-status" class="pill">–</span></div>
-        </div>
-        <div class="system-card a29">
-          <h3>SWWP Vitocal 300-G A29</h3>
-          <div class="system-meta">Sole-Wasser · η_Carnot 0,47 · VL max 60°C</div>
-          <div class="specs">
-            <span class="key">SCOP berechnet</span><span class="val" id="perf-a29-scop">–</span>
-            <span class="key">COP min (kalt)</span><span class="val" id="perf-a29-min">–</span>
-            <span class="key">COP max (mild)</span><span class="val" id="perf-a29-max">–</span>
-            <span class="key">Heizstab-Anteil</span><span class="val" id="perf-a29-stab">–</span>
-          </div>
-          <div class="price-row"><span>Status</span><span id="perf-a29-status" class="pill">–</span></div>
-        </div>
-        <div class="system-card b33">
-          <h3>SWWP Vitocal 350-G B33</h3>
-          <div class="system-meta">Sole-Wasser · η_Carnot 0,50 · VL max 73°C</div>
-          <div class="specs">
-            <span class="key">SCOP berechnet</span><span class="val" id="perf-b33-scop">–</span>
-            <span class="key">COP min (kalt)</span><span class="val" id="perf-b33-min">–</span>
-            <span class="key">COP max (mild)</span><span class="val" id="perf-b33-max">–</span>
-            <span class="key">Heizstab-Anteil</span><span class="val" id="perf-b33-stab">–</span>
-          </div>
-          <div class="price-row"><span>Status</span><span id="perf-b33-status" class="pill">–</span></div>
-        </div>
-      </div>
+      <h2>Geforderte Vorlauftemperatur · Tagesverlauf</h2>
+      <div class="meta">VL_soll(t) über das Jahr — Min/Mittel/Max je Tag aus den Stundenwerten</div>
+      <div class="chart-frame tall"><canvas id="chart-vl"></canvas></div>
+    </div>
+    <div class="card" style="margin-top: 16px;">
+      <h2>Jahresdauerlinie der Heizlast</h2>
+      <div class="meta">Sortierte Heizlast: zeigt wieviele Stunden welche Last anliegt. Auslegungspunkt am linken Ende.</div>
+      <div class="chart-frame tall"><canvas id="chart-duration"></canvas></div>
+    </div>
+  </section>
+
+  <!-- TAB: ERGEBNISSE -->
+  <section class="panel" id="panel-results">
+    <div class="card">
+      <h2>Energieflüsse je System</h2>
+      <div class="meta">Wärmeerzeugung aufgeschlüsselt: WP-Anteil vs. Heizstab-Bivalent vs. Brenner</div>
+      <div class="chart-frame tall"><canvas id="chart-energy-flow"></canvas></div>
+    </div>
+    <div class="card" style="margin-top: 16px;">
+      <h2>Endenergie-Verbrauch</h2>
+      <div class="meta">Was tatsächlich gekauft werden muss (Strom in kWh, Öl in L, Holz in RM)</div>
+      <div class="chart-frame"><canvas id="chart-endenergy"></canvas></div>
+    </div>
+    <div class="card" style="margin-top: 16px;">
+      <h2>Jahreskosten</h2>
+      <div class="meta">Endenergie multipliziert mit Energiepreisen aus Parameter-Tab</div>
+      <div class="chart-frame"><canvas id="chart-cost"></canvas></div>
+    </div>
+    <div class="card" style="margin-top: 16px;">
+      <h2>Effizienz-KPIs der Wärmepumpen</h2>
+      <div class="meta">SCOP berechnet aus Σ Q_WP / Σ E_WP — mit echtem Jahresprofil, nicht Datenblatt-Schätzung</div>
+      <div class="chart-frame"><canvas id="chart-scop"></canvas></div>
+    </div>
+  </section>
+
+  <!-- TAB: ZEITREIHEN -->
+  <section class="panel" id="panel-timeseries">
+    <div class="controls-row">
+      <label>System: <select id="ts-system"><option value="b33">SWWP B33</option><option value="a29">SWWP A29</option><option value="lwwp">LWWP</option><option value="oel">Ölkessel</option><option value="holz">Holzvergaser</option></select></label>
+      <label>Zeitfenster: <select id="ts-window"><option value="full">ganzes Jahr</option><option value="winter">Kältewoche (Jan)</option><option value="trans">Übergangswoche (Apr)</option><option value="summer">Sommerwoche (Jul)</option><option value="day-cold">Kältester Tag</option></select></label>
+    </div>
+    <div class="card">
+      <h2>Außentemperatur, VL-Anforderung, Pufferschichten</h2>
+      <div class="meta">Klima und Pufferdynamik im gewählten Zeitfenster</div>
+      <div class="chart-frame tall"><canvas id="chart-ts-temps"></canvas></div>
+    </div>
+    <div class="card" style="margin-top: 16px;">
+      <h2>Wärmestrom: Last vs. Erzeugung</h2>
+      <div class="meta">Wann taktet die WP, wann läuft sie durch, wann springt der Heizstab ein</div>
+      <div class="chart-frame tall"><canvas id="chart-ts-power"></canvas></div>
+    </div>
+    <div class="card" style="margin-top: 16px;">
+      <h2>Stündlicher COP</h2>
+      <div class="meta">COP am jeweiligen Betriebspunkt — schwankt mit T_aus und VL_soll. Nur für WP-Systeme aussagekräftig.</div>
+      <div class="chart-frame"><canvas id="chart-ts-cop"></canvas></div>
     </div>
 
     <div class="card" style="margin-top: 16px;">
-      <h2>Außentemperatur-Verteilung Heizperiode</h2>
-      <div class="meta">Häufigkeit der Außentemperaturen während der Heizsaison (T &lt; <span id="t-grenze-display">17</span>°C). Die seltenen kalten Tage produzieren überproportional viel Heizenergie — gewichtet nach Heizbedarf statt Stunden.</div>
-      <div class="chart-frame"><canvas id="chart-tout-dist"></canvas></div>
+      <h2>Kumulierte Kosten · alle Systeme</h2>
+      <div class="meta">Aufintegrierte stündliche Kosten über die Zeit — zeigt wann sich welches System welchen Vorsprung erarbeitet. Wo Linien sich kreuzen, lohnt der Wechsel.</div>
+      <div class="chart-frame tall"><canvas id="chart-ts-cost-cum"></canvas></div>
+    </div>
+
+    <div class="card" style="margin-top: 16px;">
+      <h2>Wärmekosten je kWh · alle Systeme</h2>
+      <div class="meta">Tagesmittel der momentanen Wärmekosten (€ pro kWh erzeugte Wärme). Wenn Holz unter SWWP fällt, ist Holz an dem Tag günstiger zu betreiben — Basis für Mischbetrieb-Strategie.</div>
+      <div class="chart-frame tall"><canvas id="chart-ts-cost-rate"></canvas></div>
     </div>
 
     <div class="card desc" style="margin-top: 16px;">
-      <h2>Warum die Heizkurve über die WP-Wahl entscheidet</h2>
-      <p><strong>Gemeinsamer Pufferspeicher</strong> heißt: der Erzeuger muss die VL liefern, die der ungünstigste Verbraucher fordert. Bei diesem Anwesen ist das WE1 (Altbau, 65°C bei -12°C). WE2 nimmt sich davon, was es braucht (35°C über Mischer).</p>
-      <p>Die <strong>Vitocal 300-G A29</strong> hat ein VL-Limit von 60°C. Bei der gegebenen Heizkurve schafft sie die geforderten 65°C an kalten Tagen nicht — der Heizstab muss die Restwärme bringen. Das drückt den Jahres-SCOP messbar.</p>
-      <p>Die <strong>Vitocal 350-G B33</strong> liefert bis 73°C, ist also dimensioniert für genau diesen Fall. Die <strong>LWWP Vaillant aroTHERM Plus</strong> (R290) liefert bis ~70°C, schafft die VL also gerade noch — leidet aber unter dem viel größeren Hub bei tiefen Außentemperaturen.</p>
-      <p><strong>Der größte Hebel</strong> ist die VL-Auslegung selbst: sinkt sie von 65°C auf 50°C (z.B. durch Heizkörper-Vergrößerung oder Niedertemperatur-Sanierung), gewinnen alle WPs deutlich an SCOP — und die A29 ist nicht mehr im Bivalent-Modus. Das im Tab Parameter ausprobieren.</p>
-      <p>Mehr: <a href="https://www.energie-experten.org/heizung/waermepumpe/wirtschaftlichkeit/cop-jaz-scop" target="_blank">SCOP-Methodik</a> · <a href="https://www.viessmann.de/de/wohngebaeude/waermepumpe.html" target="_blank">Viessmann VL-Limits</a></p>
+      <h2>Mischbetrieb interpretieren</h2>
+      <p>Holz hat <strong>konstante Wärmekosten pro kWh</strong> (Brennstoff-Preis durch Heizwert · Wirkungsgrad), unabhängig vom Wetter. Wärmepumpen werden im Winter teurer (niedriger COP wegen hohem Hub) und im Sommer billiger.</p>
+      <p>Die Schnittpunkte zeigen den <strong>monetären Break-Even</strong>: an Tagen wo die SWWP-Linie über die Holz-Linie steigt, ist es energetisch günstiger Holz zu verfeuern. Je nach Heizkurve und Wetter passiert das in den kältesten 30-60 Tagen des Jahres.</p>
+      <p>Für die optimale Mischbetrieb-Strategie würde man Holz für die kalten Wochen reservieren (wenn die SWWP teurer ist UND Komfortfaktoren wie Wärmedichte und Authentizität dazukommen) und die SWWP für Übergangszeit und Sommer einsetzen, wo COP 5+ erreichbar ist.</p>
     </div>
   </section>
 
-  <!-- TAB: ANSCHAFFUNG -->
-  <section class="panel" id="panel-capex">
+  <!-- TAB: PUFFERDYNAMIK -->
+  <section class="panel" id="panel-puffer">
+    <div class="controls-row">
+      <label>System: <select id="puf-system"><option value="b33">SWWP B33</option><option value="a29">SWWP A29</option><option value="lwwp">LWWP</option><option value="oel">Ölkessel</option><option value="holz">Holzvergaser</option></select></label>
+    </div>
     <div class="card">
-      <h2>Anschaffungskosten je System · Solo-Betrieb</h2>
-      <div class="meta">Brutto-Investition inkl. Installation, Tank, Schornstein, Hydraulik, Entsorgung. Mit/ohne BAFA-Förderung. Förderdeckel 15.000 €.</div>
-      <div class="legend">
-        <span class="legend-item"><span class="legend-swatch" style="background:#1c1c1a"></span>Netto mit Förderung</span>
-        <span class="legend-item"><span class="legend-swatch" style="background:#bdbab0"></span>Netto ohne Förderung</span>
-      </div>
-      <div class="chart-frame tall"><canvas id="chart-capex"></canvas></div>
+      <h2>Pufferschicht-Temperaturen · Jahresverlauf</h2>
+      <div class="meta">Oben (zur VL-Versorgung), Mitte (Mischzone), Unten (Rücklauf vom Verbraucher)</div>
+      <div class="chart-frame tall"><canvas id="chart-puf-year"></canvas></div>
     </div>
-
-    <div class="grid grid-3" style="margin-top: 16px;">
-      <div class="system-card holz">
-        <h3>Fröling S3 Turbo 50 kW</h3>
-        <div class="system-meta">Holzvergaser · Lambda-geregelt · 230 L Füllraum</div>
-        <div class="specs">
-          <span class="key">Leistung</span><span class="val">50 kW</span>
-          <span class="key">Wirkungsgrad</span><span class="val">91%</span>
-          <span class="key">Förderfähig</span><span class="val">ja*</span>
-          <span class="key">Lebensdauer</span><span class="val">~25 J.</span>
-        </div>
-        <div class="price-row"><span>Brutto</span><span class="price" id="price-holz-brutto">–</span></div>
-        <div class="price-row"><span>Netto mit Förd.</span><span class="price" id="price-holz-mF">–</span></div>
-        <a class="link" href="https://www.froeling.com/de/produkte/holzkessel/scheitholzkessel/s3-turbo.html" target="_blank">Datenblatt →</a>
-      </div>
-      <div class="system-card oel">
-        <h3>Vitoladens 300-W 26 kW</h3>
-        <div class="system-meta">Öl-Brennwert · Modern-Ersatz Vitola</div>
-        <div class="specs">
-          <span class="key">Leistung</span><span class="val">26 kW</span>
-          <span class="key">Wirkungsgrad</span><span class="val">98%</span>
-          <span class="key">Förderfähig</span><span class="val">nein</span>
-          <span class="key">Lebensdauer</span><span class="val">~20 J.</span>
-        </div>
-        <div class="price-row"><span>Brutto</span><span class="price" id="price-oel-brutto">–</span></div>
-        <div class="price-row"><span>Netto</span><span class="price" id="price-oel-netto">–</span></div>
-        <a class="link" href="https://www.viessmann.de/de/wohngebaeude/oelheizung/oel-brennwertkessel/vitoladens-300-w.html" target="_blank">Datenblatt →</a>
-      </div>
-      <div class="system-card stab">
-        <h3>Heizstab 4× 9 kW</h3>
-        <div class="system-meta">Askoma ASKOHEAT-F+ · 36 kW</div>
-        <div class="specs">
-          <span class="key">Leistung</span><span class="val">36 kW</span>
-          <span class="key">Wirkungsgrad</span><span class="val">100%</span>
-          <span class="key">Förderfähig</span><span class="val">nein</span>
-          <span class="key">Lebensdauer</span><span class="val">~15 J.</span>
-        </div>
-        <div class="price-row"><span>Brutto</span><span class="price" id="price-stab-brutto">–</span></div>
-        <div class="price-row"><span>Netto</span><span class="price" id="price-stab-netto">–</span></div>
-        <a class="link" href="https://www.askoma.com/produkte/askoheat-f-plus/" target="_blank">Datenblatt →</a>
-      </div>
-      <div class="system-card lwwp">
-        <h3>Vaillant aroTHERM Kaskade</h3>
-        <div class="system-meta">Luft-Wasser · 2× 17 kW · R290 · VL max 70°C</div>
-        <div class="specs">
-          <span class="key">Leistung</span><span class="val">34 kW</span>
-          <span class="key">SCOP berechnet</span><span class="val" id="cap-lwwp-scop">–</span>
-          <span class="key">Förderfähig</span><span class="val">ja</span>
-          <span class="key">Lebensdauer</span><span class="val">~15 J.</span>
-        </div>
-        <div class="price-row"><span>Brutto</span><span class="price" id="price-lwwp-brutto">–</span></div>
-        <div class="price-row"><span>Netto mit Förd.</span><span class="price" id="price-lwwp-mF">–</span></div>
-        <a class="link" href="https://www.vaillant.de/heizung/produkte/arotherm-plus-29476.html" target="_blank">Datenblatt →</a>
-      </div>
-      <div class="system-card a29">
-        <h3>Vitocal 300-G A29</h3>
-        <div class="system-meta">Sole-Wasser · 29 kW · VL max 60°C</div>
-        <div class="specs">
-          <span class="key">Leistung</span><span class="val">29 kW</span>
-          <span class="key">SCOP berechnet</span><span class="val" id="cap-a29-scop">–</span>
-          <span class="key">Förderfähig</span><span class="val">ja</span>
-          <span class="key">Lebensdauer</span><span class="val">~25 J.</span>
-        </div>
-        <div class="price-row"><span>Brutto</span><span class="price" id="price-a29-brutto">–</span></div>
-        <div class="price-row"><span>Netto mit Förd.</span><span class="price" id="price-a29-mF">–</span></div>
-        <a class="link" href="https://www.viessmann.de/de/wohngebaeude/waermepumpe/sole-wasser-waermepumpen/vitocal-300-g.html" target="_blank">Datenblatt →</a>
-      </div>
-      <div class="system-card b33">
-        <h3>Vitocal 350-G B33</h3>
-        <div class="system-meta">Sole-Wasser · 32,7 kW · VL max 73°C</div>
-        <div class="specs">
-          <span class="key">Leistung</span><span class="val">32,7 kW</span>
-          <span class="key">SCOP berechnet</span><span class="val" id="cap-b33-scop">–</span>
-          <span class="key">Förderfähig</span><span class="val">ja</span>
-          <span class="key">Lebensdauer</span><span class="val">~25 J.</span>
-        </div>
-        <div class="price-row"><span>Brutto</span><span class="price" id="price-b33-brutto">–</span></div>
-        <div class="price-row"><span>Netto mit Förd.</span><span class="price" id="price-b33-mF">–</span></div>
-        <a class="link" href="https://www.viessmann.de/de/wohngebaeude/waermepumpe/sole-wasser-waermepumpen/vitocal-350-g.html" target="_blank">Datenblatt →</a>
-      </div>
-    </div>
-
     <div class="card" style="margin-top: 16px;">
-      <h2>Förderdetails</h2>
-      <div class="meta">BEG-Einzelmaßnahmen · BAFA</div>
-      <div class="desc">
-        <p>Die Förderlandschaft ist <strong>volatil</strong>. Stand Anfang 2026: 50% Fördersatz auf förderfähige Kosten, gedeckelt bei 15.000 € absoluter Förderbetrag. Wärmepumpen sind klar förderfähig bei Ölkessel-Tausch. Holzvergaser-Förderung hängt von Emissionsgrenzwerten ab (≤ 2,5 mg/m³ Staub) und Pufferspeicher-Pflicht (≥ 30 L/kW). Die Förderung kann sich politisch jederzeit ändern.</p>
-        <p>Für die Investitionsentscheidung gilt: <strong>Förderzusage vor Auftragsvergabe einholen</strong>, sonst wirtschaftliche Kalkulation auf Worst-Case stellen.</p>
-        <p>Mehr: <a href="https://www.bafa.de/DE/Energie/Effiziente_Gebaeude/Foerderprogramm_im_Ueberblick/foerderprogramm_im_ueberblick_node.html" target="_blank">BAFA</a> · <a href="https://www.energiewechsel.de/" target="_blank">BMWK Energiewechsel</a></p>
-      </div>
+      <h2>Pufferenergie-Inhalt</h2>
+      <div class="meta">Gesamtenergie im Puffer relativ zu 20°C. Schwankt zwischen voll und leer.</div>
+      <div class="chart-frame"><canvas id="chart-puf-energy"></canvas></div>
+    </div>
+    <div class="card" style="margin-top: 16px;">
+      <h2>VL-Deckung</h2>
+      <div class="meta">Anteil der Stunden in denen T_oben ≥ VL_soll ist (= keine Unterdeckung)</div>
+      <div class="chart-frame"><canvas id="chart-puf-coverage"></canvas></div>
     </div>
   </section>
 
-  <!-- TAB: WÄRMEKOSTEN -->
-  <section class="panel" id="panel-energy">
-    <div class="grid grid-2">
-      <div class="card">
-        <h2>Wärmekosten pro kWh</h2>
-        <div class="meta">Brennstoff- bzw. Stromkosten dividiert durch Wirkungsgrad/SCOP</div>
-        <div class="chart-frame"><canvas id="chart-cost-kwh"></canvas></div>
-      </div>
-      <div class="card">
-        <h2>Jahreskosten Solo-Betrieb</h2>
-        <div class="meta">OPEX bei 100% Wärmedeckung durch je ein System</div>
-        <div class="chart-frame"><canvas id="chart-cost-year"></canvas></div>
-      </div>
-    </div>
-    <div class="card" style="margin-top: 16px;">
-      <h2>Min/Max-Spannweite Wärmepumpen</h2>
-      <div class="meta">COP-Spannweite zwischen Best-Day (mild, Übergangszeit) und Worst-Day (Auslegung -12°C). Berechnet aus aktueller Heizkurve.</div>
-      <div class="chart-frame"><canvas id="chart-cost-range"></canvas></div>
-    </div>
-  </section>
-
-  <!-- TAB: SOLO-BETRIEB -->
-  <section class="panel" id="panel-solo">
+  <!-- TAB: BIVALENT -->
+  <section class="panel" id="panel-bivalent">
     <div class="card">
-      <h2>25-Jahre-Total-Cost-of-Ownership · Solo</h2>
-      <div class="meta">Investition (mit/ohne Förderung) plus 25 Jahre Brennstoff-/Stromkosten</div>
-      <div class="legend">
-        <span class="legend-item"><span class="legend-swatch" style="background:#1c1c1a"></span>Mit Förderung</span>
-        <span class="legend-item"><span class="legend-swatch" style="background:#bdbab0"></span>Ohne Förderung</span>
-      </div>
-      <div class="chart-frame tall"><canvas id="chart-tco-solo"></canvas></div>
+      <h2>Bivalent-Anteil über Außentemperatur</h2>
+      <div class="meta">Bei welchen Außentemperaturen muss der Heizstab einspringen? Aufgeschlüsselt nach 1°C-Bins.</div>
+      <div class="chart-frame tall"><canvas id="chart-biv-temp"></canvas></div>
     </div>
     <div class="card" style="margin-top: 16px;">
-      <h2>Kostenverlauf über 25 Jahre · mit Förderung</h2>
-      <div class="meta">Kumulierte Gesamtkosten je Jahr, jedes System eigene Linie</div>
-      <div class="chart-frame tall"><canvas id="chart-amort-solo-mF"></canvas></div>
-    </div>
-    <div class="card" style="margin-top: 16px;">
-      <h2>Kostenverlauf über 25 Jahre · ohne Förderung</h2>
-      <div class="meta">Worst-Case ohne BAFA-Bonus</div>
-      <div class="chart-frame tall"><canvas id="chart-amort-solo-oF"></canvas></div>
-    </div>
-  </section>
-
-  <!-- TAB: MISCHBETRIEB -->
-  <section class="panel" id="panel-mix">
-    <div class="card">
-      <h2>Mischbetrieb · Holzvergaser primär + Backup</h2>
-      <div class="meta">Aktueller Anteil <span id="mix-anteil-display">70/30</span> · zwei Systeme installiert</div>
-      <div class="chart-frame tall"><canvas id="chart-tco-mix"></canvas></div>
-    </div>
-    <div class="card" style="margin-top: 16px;">
-      <h2>Kostenverlauf Mischbetrieb · mit Förderung</h2>
-      <div class="meta">25 Jahre kumuliert, Holz+X mit Holzvergaser plus zweitem Erzeuger</div>
-      <div class="chart-frame tall"><canvas id="chart-amort-mix-mF"></canvas></div>
-    </div>
-    <div class="card" style="margin-top: 16px;">
-      <h2>Solo vs Mischbetrieb · Endwerte Jahr 25</h2>
-      <div class="meta">Vergleich: solo dasselbe System vs. dasselbe System + Holzvergaser</div>
-      <div class="chart-frame tall"><canvas id="chart-solo-vs-mix"></canvas></div>
-    </div>
-  </section>
-
-  <!-- TAB: PROGNOSE 2035 -->
-  <section class="panel" id="panel-forecast">
-    <div class="card">
-      <h2>Energiepreis-Prognose bis 2035</h2>
-      <div class="meta">Jährlicher Preisanstieg pro Energieträger · Werte im Tab Parameter änderbar</div>
-      <div class="chart-frame tall"><canvas id="chart-price-forecast"></canvas></div>
-    </div>
-    <div class="card" style="margin-top: 16px;">
-      <h2>Wärmekosten-Entwicklung pro kWh</h2>
-      <div class="meta">Wie sich die €/kWh je System entwickeln, basierend auf Preis-Prognose und aktueller Heizkurve</div>
-      <div class="chart-frame tall"><canvas id="chart-cost-kwh-forecast"></canvas></div>
-    </div>
-    <div class="card" style="margin-top: 16px;">
-      <h2>25-Jahres-TCO mit Preisinflation · Solo mit Förderung</h2>
-      <div class="meta">Kumulierte Kosten mit jährlich steigenden Energiepreisen</div>
-      <div class="chart-frame tall"><canvas id="chart-tco-forecast"></canvas></div>
-    </div>
-  </section>
-
-  <!-- TAB: PV -->
-  <section class="panel" id="panel-pv">
-    <div class="card">
-      <h2>PV-System</h2>
-      <div class="meta">10 kWp Dachanlage · saisonales Mismatch zwischen PV-Produktion und Heizbedarf</div>
-      <div class="chart-frame tall"><canvas id="chart-pv-seasonal"></canvas></div>
-    </div>
-    <div class="card" style="margin-top: 16px;">
-      <h2>Heizkosten mit/ohne PV-Eigenverbrauch</h2>
-      <div class="meta">Reduktion durch direkten Verbrauch des PV-Stroms an WP/Heizstab</div>
-      <div class="chart-frame"><canvas id="chart-pv-impact"></canvas></div>
-    </div>
-    <div class="desc card" style="margin-top: 16px;">
-      <h2>Saisonales Mismatch</h2>
-      <div class="meta">Warum PV im Winter kaum für Heizung hilft</div>
-      <p>Eine 10 kWp PV liefert im Sommer 4–5× so viel Strom wie im Winter, der Heizbedarf hat den umgekehrten Verlauf. Eine 20 kWh Batterie hilft tagessynchron, aber nicht saisonal — der riesige Sommerüberschuss kann nicht in den Winter transportiert werden.</p>
-      <p>Mehr: <a href="https://www.solarwirtschaft.de/datawall/uploads/2024/03/BSW_Faktenpapier_Solarwaerme.pdf" target="_blank">BSW Faktenpapier PV+WP</a> · <a href="https://www.fraunhofer.de/de/forschung/aktuelles-aus-der-forschung/wege-zur-energiewende.html" target="_blank">Fraunhofer ISE</a></p>
-    </div>
-  </section>
-
-  <!-- TAB: WARMWASSER -->
-  <section class="panel" id="panel-ww">
-    <div class="card">
-      <h2>Warmwasser-Strategien</h2>
-      <div class="meta">Vergleich verschiedener Lösungen für ~2.200 kWh/a WW-Bedarf bei 6 Personen</div>
-      <div class="chart-frame"><canvas id="chart-ww-cost"></canvas></div>
-    </div>
-    <div class="grid grid-3" style="margin-top: 16px;">
-      <div class="system-card a29">
-        <h3>Brauchwasser-WP</h3>
-        <div class="system-meta">Stiebel WWK 302 · 2 kW · 302 L Speicher</div>
-        <div class="specs">
-          <span class="key">SCOP</span><span class="val">3,5</span>
-          <span class="key">Wärmequelle</span><span class="val">Heizraum</span>
-          <span class="key">Investition</span><span class="val">~3.400 €</span>
-          <span class="key">Legionellen</span><span class="val">+Heizstab</span>
-        </div>
-        <a class="link" href="https://www.stiebel-eltron.de/de/home/produkte-loesungen/erneuerbare_energien/warmwasser-waermepumpe/wwk_302electronic.html" target="_blank">Datenblatt →</a>
-      </div>
-      <div class="system-card b33">
-        <h3>Frischwasserstation</h3>
-        <div class="system-meta">PAW HZW 80 · aus 4000 L Puffer</div>
-        <div class="specs">
-          <span class="key">Durchsatz</span><span class="val">80 L/min</span>
-          <span class="key">Wärmequelle</span><span class="val">Puffer 65°C+</span>
-          <span class="key">Investition</span><span class="val">~2.200 €</span>
-          <span class="key">Legionellen</span><span class="val">unkritisch</span>
-        </div>
-        <a class="link" href="https://www.paw.eu/de/produkte/frischwasserstationen/" target="_blank">Datenblatt →</a>
-      </div>
-      <div class="system-card stab">
-        <h3>Heizstab im BW-Speicher</h3>
-        <div class="system-meta">Askoma 3 kW · für Spitzenlast und Legionellen</div>
-        <div class="specs">
-          <span class="key">Leistung</span><span class="val">3 kW</span>
-          <span class="key">Wirkungsgrad</span><span class="val">100%</span>
-          <span class="key">Investition</span><span class="val">~600 €</span>
-          <span class="key">PV-Kombi</span><span class="val">ideal</span>
-        </div>
-        <a class="link" href="https://www.askoma.com/" target="_blank">Datenblatt →</a>
-      </div>
+      <h2>COP-Histogramm der WPs</h2>
+      <div class="meta">Wie häufig läuft die WP in welchem COP-Bereich. Spitze ist der dominante Betriebspunkt.</div>
+      <div class="chart-frame tall"><canvas id="chart-cop-hist"></canvas></div>
     </div>
     <div class="card desc" style="margin-top: 16px;">
-      <h2>Warum WW eine Sonderbetrachtung braucht</h2>
-      <p>Bei 60°C Speichertemperatur (Legionellenschutz) fällt der COP einer SWWP von 4,0 auf ~3,0. Im Sommer würde die SWWP nur fürs WW takten — schlecht für Lebensdauer und Effizienz. Eine separate Brauchwasser-WP zieht aus den Verlustwärmen im Heizraum, hat ihren eigenen 300 L Speicher und entkoppelt das ganze WW-Geschäft von der Heizungs-WP.</p>
-      <p>Mehr: <a href="https://www.umweltbundesamt.de/themen/wasser/trinkwasser/trinkwasser-installation/legionellen" target="_blank">UBA · Legionellen</a></p>
-    </div>
-  </section>
-
-  <!-- TAB: WP-EFFIZIENZ -->
-  <section class="panel" id="panel-wp-eff">
-    <div class="card">
-      <h2>Direktvergleich: COP über Hub</h2>
-      <div class="meta">Hub = T<sub>Vorlauf</sub> − T<sub>Quelle</sub>. SWWP hat stabile Sole (~0°C ±5K), LWWP variiert ±20K mit Außenluft. Carnot-basierte Modellierung mit Gütegrad ≈ 0,42–0,50.</div>
-      <div class="chart-frame tall"><canvas id="chart-cop-hub"></canvas></div>
-      <div class="desc" style="margin-top: 12px;">
-        <p>Beide Maschinen folgen näherungsweise einer Carnot-artigen Kurve, der Vorteil der SWWP ist nicht intrinsisch — er liegt daran, dass die Solequelle bei -3°C Außentemperatur noch ~0°C liefert, während die Luft-WP mit -3°C arbeiten muss. Bei gleichem Hub liegen LWWP und SWWP nahe beieinander.</p>
-      </div>
-    </div>
-
-    <div class="card" style="margin-top: 16px;">
-      <h2>COP über Außentemperatur · bei konstanter Vorlauftemperatur</h2>
-      <div class="meta">Wie der COP über das Wetter zerfällt — die SWWP ignoriert Außentemperaturen weitgehend, die LWWP leidet stark.</div>
-      <div class="scenario-controls">
-        <label>VL Szenario A: <input type="number" id="vl-a" value="35" step="5" min="25" max="80">°C <span class="scenario-tag">Neubau / FBH</span></label>
-        <label>VL Szenario B: <input type="number" id="vl-b" value="65" step="5" min="25" max="80">°C <span class="scenario-tag">Altbau / Heizkörper</span></label>
-      </div>
-      <div class="chart-frame tall"><canvas id="chart-cop-tout"></canvas></div>
-    </div>
-
-    <div class="card" style="margin-top: 16px;">
-      <h2>COP über Vorlauftemperatur · bei konstanter Außentemperatur</h2>
-      <div class="meta">Wie sich der COP mit jedem zusätzlichen °C VL verschlechtert — wichtig für die Frage Heizkörper-Tausch oder nicht.</div>
-      <div class="scenario-controls">
-        <label>T<sub>außen</sub> A: <input type="number" id="tout-a" value="5" step="1" min="-15" max="15">°C <span class="scenario-tag">Übergangszeit</span></label>
-        <label>T<sub>außen</sub> B: <input type="number" id="tout-b" value="-12" step="1" min="-15" max="15">°C <span class="scenario-tag">Auslegungstemp.</span></label>
-      </div>
-      <div class="chart-frame tall"><canvas id="chart-cop-vl"></canvas></div>
-      <div class="desc" style="margin-top: 12px;">
-        <p>Daumenregel: pro 1°C VL-Senkung gewinnt die WP ~2,5% COP. Von 65°C auf 55°C sind das ~25% Effizienz — der Grund, warum die Senkung der Vorlauftemperatur (größere Heizkörper, hydraulischer Abgleich) oft mehr bringt als eine teurere WP-Variante.</p>
-      </div>
-    </div>
-
-    <div class="card" style="margin-top: 16px;">
-      <h2>WW-Speichertemperatur · COP-Verlust</h2>
-      <div class="meta">Bei 60°C Speichertemperatur (Legionellenschutz) fällt der COP signifikant — daher die Sonderbetrachtung beim Warmwasser.</div>
-      <div class="chart-frame"><canvas id="chart-cop-ww"></canvas></div>
-    </div>
-
-    <div class="card desc" style="margin-top: 16px;">
-      <h2>Modellannahmen</h2>
-      <p>COP = η<sub>i</sub> · (T<sub>VL</sub> + 273,15) / (T<sub>VL</sub> − T<sub>Quelle</sub>) · Gütegrade: B33 0,50 · A29 0,47 · LWWP 0,42 · Sole konstant 0°C im Winter, ±5K übers Jahr · Cap zwischen COP 1,0 und 7,0.</p>
-      <p>Vereinfachung: Reale Maschinen weichen davon ab durch Verdampfer-/Verflüssiger-Auslegung, Inverter-Modulation und Abtauverluste (LWWP bei -3 bis +3°C). Die Kurven sind eine pädagogische Näherung, keine Datenblatt-Replikation. Für exakte Werte: <a href="https://keymark.eu/en/products/heatpumps/certified-products" target="_blank">Heat Pump Keymark</a></p>
-    </div>
-  </section>
-
-  <!-- TAB: JAHRESSIMULATION -->
-  <section class="panel" id="panel-sim">
-    <div class="card">
-      <h2>Tageskosten nach Außentemperatur</h2>
-      <div class="meta">Hypothetische 24h-Kosten je System bei konstanter Außentemperatur (heute, ohne Inflation). WPs nutzen Bivalent-Modus mit Heizstab, wenn VL > VL_max.</div>
-      <div class="chart-frame tall"><canvas id="chart-day-temp"></canvas></div>
-    </div>
-    <div class="card" style="margin-top: 16px;">
-      <h2>Break-Even nach Backup-Anteil</h2>
-      <div class="meta">Bei welchem Backup-Anteil wird welches System wirtschaftlich? Holz + Backup-System X über 25 Jahre kumuliert.</div>
-      <div class="chart-frame tall"><canvas id="chart-break-even"></canvas></div>
-    </div>
-    <div class="card" style="margin-top: 16px;">
-      <h2>Heizlast-Verteilung übers Jahr</h2>
-      <div class="meta">Annahme: 220 Heiztage, sinusförmiger Verlauf · zeigt warum Mischbetrieb sinnvoll ist</div>
-      <div class="chart-frame tall"><canvas id="chart-load-year"></canvas></div>
+      <h2>Was die Bivalent-Analyse zeigt</h2>
+      <p>Die <strong>A29</strong> mit VL-Limit 60°C kommt bei der Auslegungs-Vorlauftemperatur 65°C an den kalten Tagen nicht hin — der Heizstab muss zuschießen, was den SCOP drückt. Wenn du in den Parametern die Auslegungs-VL auf 55°C reduzierst (z.B. nach Heizkörper-Tausch), siehst du wie der Heizstab-Anteil verschwindet.</p>
+      <p>Die <strong>LWWP</strong> hat zwar VL bis 70°C, leidet aber unter dem hohen Hub bei kalten Tagen — bei -10°C Außentemperatur und 65°C VL ist der Hub 75K, der Carnot-COP fällt unter 2,0.</p>
+      <p>Die <strong>B33</strong> ist für genau diesen Anwendungsfall gebaut: stabile Solequelle plus 73°C VL-Limit. Bivalent-Modus tritt praktisch nicht auf.</p>
     </div>
   </section>
 
 </div>
 
 <script>
+'use strict';
+
 // ============================================
-// PARAMETERS · zentraler State
+// PARAMETERS
 // ============================================
 const P = {
-  Verb_WE1: 46500, Verb_WE2: 12000,
-  HW_Holz: 1700, P_Holz: 100, Eta_Holz: 90,
-  HW_Oel: 10, P_Oel: 1.10, Eta_Oel: 97,
-  P_Strom: 0.32, P_Einsp: 0.08,
-  Eta_Stab: 100,
-  // Heizkurve · NEU statt fixer COPs
-  VL_Auslegung: 65,    // VL bei T_Norm (Auslegungstemp), für Altbau
-  T_Norm: -12,         // Norm-Außentemperatur (regional)
-  T_Heizgrenze: 17,    // Heizgrenze
-  T_Raum: 20,          // Raum-Solltemperatur
-  Foerder_Satz: 0.50, Foerder_Max: 15000, Foerder_Aktiv: 1,
-  Anteil_Holz: 0.70, Anteil_Backup: 0.30,
-  Inflation_Oel: 0.04, Inflation_Strom: 0.02, Inflation_Holz: 0.025,
-  PV_kWp: 10, PV_Yield: 950, PV_Self_Rate: 70,
-  // WP-Effizienz Tab Szenarien
-  WP_VL_A: 35, WP_VL_B: 65,
-  WP_Tout_A: 5, WP_Tout_B: -12,
+  // Klima
+  T_mittel: 9.5, T_amp: 11, T_phase: 18, T_tagesgang: 4.5, Kaeltewellen_intensity: 1.0, seed: 42,
+  // WE1 Altbau
+  Q_norm_WE1: 22.1, T_Norm: -12, T_HG_WE1: 17, VL_aus_WE1: 65, T_soll_tag_WE1: 21, T_soll_nacht_WE1: 18,
+  // WE2 Neubau
+  Q_norm_WE2: 5.7, T_HG_WE2: 15, VL_aus_WE2: 35, T_soll_tag_WE2: 22, T_soll_nacht_WE2: 19,
+  // Warmwasser
+  WW_kWh_d: 9.6, T_WW: 55, // 6P · ~50L/P · ΔT 35K
+  // Puffer
+  V_Puffer: 4000, T_Umg: 16, k_Verlust: 0.000002, // pro L und K, kWh/(K·h·L) — ~1,5 kWh/d je 1000L bei 30K ΔT
+  // Strompreis etc
+  P_Strom: 0.32, P_Oel: 1.10, HW_Oel: 10, eta_Oel: 0.97,
+  P_Holz: 100, HW_Holz: 1700, eta_Holz: 0.90,
+  // Heizstab
+  Stab_kW: 36, eta_Stab: 1.0,
 };
 
 const COL = {
   holz: '#0F6E56', oel: '#993C1D', stab: '#D4A017',
-  lwwp: '#BA7517', a29: '#5BA8E0', b33: '#185FA5'
+  lwwp: '#BA7517', a29: '#5BA8E0', b33: '#185FA5',
+  tout: '#5f5e5a', vl: '#C77700',
+  buf_top: '#B83A1A', buf_mid: '#D4A017', buf_bot: '#5BA8E0',
 };
 
-// WP-Spezifikationen — fix, aus Datenblättern
+// Wärmepumpen — Carnot-Gütegrad und VL-Limit
 const WP = {
-  lwwp: { eta: 0.42, vlMax: 70, name: 'LWWP', quelle: 'luft', col: COL.lwwp },
-  a29:  { eta: 0.47, vlMax: 60, name: 'A29',  quelle: 'sole', col: COL.a29 },
-  b33:  { eta: 0.50, vlMax: 73, name: 'B33',  quelle: 'sole', col: COL.b33 },
+  lwwp: { eta: 0.35, vlMax: 70, name: 'LWWP', quelle: 'luft', col: COL.lwwp, kW_max: 34 },
+  a29:  { eta: 0.47, vlMax: 60, name: 'A29',  quelle: 'sole', col: COL.a29, kW_max: 29 },
+  b33:  { eta: 0.50, vlMax: 73, name: 'B33',  quelle: 'sole', col: COL.b33, kW_max: 33 },
 };
 
-// CAPEX-Posten
-const POSTS = {
-  holz: { Geraet: 17500, Schornstein: 2500, Hydraulik: 1800, Lager: 500, Install: 3500, Entsorgung: 1500 },
-  oel:  { Geraet: 10500, Tank: 3000, Schornstein: 2000, Neutral: 500, Hydraulik: 1500, Install: 2500, Entsorgung: 1500 },
-  stab: { Geraet: 2400, Steuerung: 2500, Strom: 2500, Hydraulik: 800, Install: 1500, Entsorgung: 1500 },
-  lwwp: { Geraet: 22000, Aussen: 2500, Steuerung: 2000, Strom: 1500, Backup: 800, Hydraulik: 2500, Install: 4500, Entsorgung: 1500 },
-  a29:  { Geraet: 14000, Quelle: 8000, Sole: 600, Strom: 1500, Backup: 800, Hydraulik: 2000, Install: 3500, Entsorgung: 1500 },
-  b33:  { Geraet: 20000, Quelle: 10000, Sole: 700, Strom: 1500, Backup: 800, Hydraulik: 2000, Install: 3500, Entsorgung: 1500 },
-};
+// Konstanten
+const C_WATER = 0.001163; // kWh/(L·K)
+const HOURS = 8760;
 
 // ============================================
-// PHYSIK-MODELLE
+// PHYSIK-FUNKTIONEN
 // ============================================
 
-// Heizkurve: lineare Interpolation zwischen (T_Norm, VL_Auslegung) und (T_Heizgrenze, T_Raum)
-function VL_at(T_aussen) {
-  if (T_aussen >= P.T_Heizgrenze) return P.T_Raum;
-  const span = P.T_Heizgrenze - P.T_Norm;
-  if (span <= 0) return P.VL_Auslegung;
-  return P.T_Raum + (P.T_Heizgrenze - T_aussen) / span * (P.VL_Auslegung - P.T_Raum);
+// Deterministischer Seed-PRNG (Mulberry32)
+function mulberry32(a) { return function() { let t = a += 0x6D2B79F5; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+// Synthetisches Wetter: Sinus-Jahresgang + Tagesgang + stochastische Kältewellen
+function buildWeather() {
+  const T = new Float32Array(HOURS);
+  const rng = mulberry32(P.seed);
+  // Glatter Jahresgang
+  for (let h = 0; h < HOURS; h++) {
+    const day = h / 24;
+    const yearPhase = 2 * Math.PI * (day - P.T_phase) / 365;
+    const dailyPhase = 2 * Math.PI * (h % 24 - 14) / 24; // Max bei 14 Uhr
+    T[h] = P.T_mittel - P.T_amp * Math.cos(yearPhase) - P.T_tagesgang * Math.cos(dailyPhase) * 0.5;
+  }
+  // Stochastische Kältewellen — multitag-Anomalien
+  // Bias auf Wintermonate (Tag 0–60 und 305–365)
+  if (P.Kaeltewellen_intensity > 0) {
+    const numEvents = Math.floor(8 + rng() * 6); // 8–14 Wetterevents/Jahr
+    for (let e = 0; e < numEvents; e++) {
+      const r = rng();
+      // Bias: 70% der Events im Winter
+      let center;
+      if (rng() < 0.7) {
+        center = (rng() < 0.5 ? rng() * 70 : 290 + rng() * 75) * 24;
+      } else {
+        center = rng() * HOURS;
+      }
+      const duration = (24 + rng() * 96); // 1–5 Tage
+      // Im Winter eher Kältewellen, im Sommer eher Hitzewellen
+      const dayOfYear = (center / 24) % 365;
+      const winterFactor = (dayOfYear < 90 || dayOfYear > 270) ? 1 : -0.5;
+      const amplitude = (3 + rng() * 7) * winterFactor * P.Kaeltewellen_intensity * (rng() < 0.7 ? -1 : 1);
+      for (let h = 0; h < HOURS; h++) {
+        const dist = Math.abs(h - center);
+        if (dist < duration) {
+          const w = Math.cos(Math.PI * dist / duration) ** 2;
+          T[h] += amplitude * w;
+        }
+      }
+    }
+    // Etwas Rauschen oben drauf
+    for (let h = 0; h < HOURS; h++) {
+      T[h] += (rng() - 0.5) * 1.5;
+    }
+  }
+  return T;
 }
 
-// Carnot-COP mit Gütegrad. Cap [1,0 ; 7,0]
+// Raum-Solltemperatur mit Tag/Nacht-Profil
+function T_soll_we(h, T_tag, T_nacht) {
+  const hour = h % 24;
+  return (hour >= 6 && hour < 22) ? T_tag : T_nacht;
+}
+
+// Heizkurve-Vorlauf
+function VL_kurve(T_aus, T_HG, T_Norm, T_Raum, VL_aus) {
+  if (T_aus >= T_HG) return T_Raum;
+  const frac = Math.max(0, Math.min(1, (T_HG - T_aus) / (T_HG - T_Norm)));
+  return T_Raum + frac * (VL_aus - T_Raum);
+}
+
+// Warmwasser-Lastprofil: realistische Dusch/Bade-Spitzen morgens und abends
+function WW_profile(h) {
+  const hour = h % 24;
+  // Profilfaktoren auf 24h normiert (Σ = 24)
+  const profile = [
+    0.2, 0.1, 0.1, 0.1, 0.2, 0.4, // 0-5 Uhr
+    1.2, 2.5, 2.0, 1.0, 0.8, 0.8, // 6-11
+    1.0, 1.0, 0.8, 0.6, 0.8, 1.2, // 12-17
+    1.8, 2.2, 1.8, 1.3, 0.8, 0.4  // 18-23
+  ];
+  // Σ profile = 24, also ist profile[h]/24 der Anteil dieser Stunde am Tagesbedarf
+  return P.WW_kWh_d * profile[hour] / 24;
+}
+
+// Sole-Quelltemperatur als Funktion von T_aus — stark gedämpft
+function T_sole(T_aus_running_avg) {
+  return Math.max(-3, Math.min(10, 2 + 0.18 * T_aus_running_avg));
+}
+
+// Carnot-COP
 function copCarnot(T_VL, T_Quelle, eta) {
   const dT = T_VL - T_Quelle;
-  if (dT <= 0) return 7.0;
+  if (dT <= 1) return 8.0;
   const cop = eta * (T_VL + 273.15) / dT;
-  return Math.max(1.0, Math.min(7.0, cop));
+  return Math.max(1.0, Math.min(8.0, cop));
 }
 
-// Sole-Temperatur als Funktion der Außentemperatur (Erdwärme: stark gedämpft)
-function solTempFromOutside(T_out) {
-  return Math.max(-5, Math.min(8, -1 + 0.15 * T_out));
-}
-
-// Effektiver COP bei Bivalent-Betrieb mit Heizstab.
-// Wenn VL_target <= vlMax → reine WP. Sonst: WP heizt RL→vlMax, Heizstab vlMax→VL_target.
-function copBivalent(T_aussen, sysKey) {
+// WP-Maximalleistung — vereinfacht, kein Datenblatt-Kennfeld
+function WP_kWmax(sysKey, T_aus, T_VL) {
   const wp = WP[sysKey];
-  const VL_target = VL_at(T_aussen);
-  const T_q = wp.quelle === 'sole' ? solTempFromOutside(T_aussen) : T_aussen;
-
-  if (VL_target <= wp.vlMax) {
-    return copCarnot(VL_target, T_q, wp.eta);
+  if (wp.quelle === 'sole') {
+    // SWWP fast unabhängig von T_aus
+    return wp.kW_max * Math.max(0.7, 1 - 0.005 * Math.max(0, T_VL - 35));
+  } else {
+    // LWWP: Leistung fällt bei tiefen Außentemperaturen
+    const f_T = Math.max(0.5, Math.min(1.1, 1 + 0.025 * (T_aus - 5)));
+    const f_VL = Math.max(0.7, 1 - 0.008 * Math.max(0, T_VL - 35));
+    return wp.kW_max * f_T * f_VL;
   }
-  // Bivalent: WP@vlMax + Heizstab für Rest
-  const T_RL = VL_target - 10; // typische Spreizung
-  const cop_wp = copCarnot(wp.vlMax, T_q, wp.eta);
-  const anteil_wp = Math.max(0, (wp.vlMax - T_RL) / (VL_target - T_RL));
-  const anteil_stab = 1 - anteil_wp;
-  if (anteil_wp <= 0) return 1.0;
-  return 1.0 / (anteil_wp / cop_wp + anteil_stab);
-}
-
-// Heizgradtage-Bins: tageweise sinusförmige T-Verteilung über Jahr
-function buildHeizBins() {
-  const bins = [];
-  const T_mittel = 9, T_amp = 11, phase = 15;
-  for (let d = 0; d < 365; d++) {
-    const T = T_mittel - T_amp * Math.cos(2 * Math.PI * (d - phase) / 365);
-    if (T < P.T_Heizgrenze) {
-      bins.push({ T, hours: 24, day: d });
-    }
-  }
-  return bins;
-}
-
-// Aggregierte Verteilung in 1°C-Bins für Histogramm
-function tempDistribution() {
-  const bins = buildHeizBins();
-  const dist = {};
-  for (const b of bins) {
-    const k = Math.round(b.T);
-    dist[k] = (dist[k] || 0) + b.hours;
-  }
-  return Object.keys(dist).map(t => ({ T: +t, hours: dist[t] })).sort((a,b) => a.T - b.T);
-}
-
-// Computes SCOP, COP-Bandbreite, Heizstab-Anteil für ein WP-System
-function computeWPMetrics(sysKey) {
-  const bins = buildHeizBins();
-  const wp = WP[sysKey];
-  let Q_total = 0, E_total = 0;
-  let cop_min = 99, cop_max = 0;
-  let stab_q = 0;
-
-  for (const b of bins) {
-    const Q_bin = Math.max(0, P.T_Heizgrenze - b.T) * b.hours;
-    const cop_eff = copBivalent(b.T, sysKey);
-    Q_total += Q_bin;
-    E_total += Q_bin / cop_eff;
-    if (cop_eff < cop_min) cop_min = cop_eff;
-    if (cop_eff > cop_max) cop_max = cop_eff;
-
-    // Bivalent-Anteil für Reporting
-    const VL_target = VL_at(b.T);
-    if (VL_target > wp.vlMax) {
-      const T_RL = VL_target - 10;
-      const anteil_wp = Math.max(0, (wp.vlMax - T_RL) / (VL_target - T_RL));
-      stab_q += Q_bin * (1 - anteil_wp);
-    }
-  }
-
-  return {
-    scop: E_total > 0 ? Q_total / E_total : 1.0,
-    cop_min, cop_max,
-    stab_anteil: Q_total > 0 ? stab_q / Q_total : 0,
-    bivalent: stab_q > 0,
-  };
 }
 
 // ============================================
-// CALCULATIONS
+// GLEITENDER MITTELWERT für Sole
 // ============================================
-function calc() {
-  const Verb_Total = P.Verb_WE1 + P.Verb_WE2;
+function rollingMean(arr, window) {
+  const out = new Float32Array(arr.length);
+  let sum = 0;
+  for (let i = 0; i < arr.length; i++) {
+    sum += arr[i];
+    if (i >= window) sum -= arr[i - window];
+    out[i] = sum / Math.min(i + 1, window);
+  }
+  return out;
+}
 
-  const wpL = computeWPMetrics('lwwp');
-  const wpA = computeWPMetrics('a29');
-  const wpB = computeWPMetrics('b33');
+// ============================================
+// LASTGÄNGE
+// ============================================
+function buildLoads(T_aus) {
+  const UA1 = P.Q_norm_WE1 / (P.T_soll_tag_WE1 - P.T_Norm);
+  const UA2 = P.Q_norm_WE2 / (P.T_soll_tag_WE2 - P.T_Norm);
 
-  const C_Holz = P.P_Holz / (P.HW_Holz * P.Eta_Holz / 100);
-  const C_Oel = P.P_Oel / (P.HW_Oel * P.Eta_Oel / 100);
-  const C_Stab = P.P_Strom / (P.Eta_Stab / 100);
-  const C_LWWP = P.P_Strom / wpL.scop;
-  const C_A29 = P.P_Strom / wpA.scop;
-  const C_B33 = P.P_Strom / wpB.scop;
+  const Q_WE1 = new Float32Array(HOURS);
+  const Q_WE2 = new Float32Array(HOURS);
+  const Q_WW = new Float32Array(HOURS); // bleibt im Modell für Anzeige, aber = 0
+  const VL_soll = new Float32Array(HOURS);
 
-  const sum = obj => Object.values(obj).reduce((a,b) => a+b, 0);
-  const brutto = {
-    holz: sum(POSTS.holz), oel: sum(POSTS.oel), stab: sum(POSTS.stab),
-    lwwp: sum(POSTS.lwwp), a29: sum(POSTS.a29), b33: sum(POSTS.b33),
+  for (let h = 0; h < HOURS; h++) {
+    const ta = T_aus[h];
+    const tsoll1 = T_soll_we(h, P.T_soll_tag_WE1, P.T_soll_nacht_WE1);
+    const tsoll2 = T_soll_we(h, P.T_soll_tag_WE2, P.T_soll_nacht_WE2);
+
+    Q_WE1[h] = ta < P.T_HG_WE1 ? UA1 * Math.max(0, tsoll1 - ta) : 0;
+    Q_WE2[h] = ta < P.T_HG_WE2 ? UA2 * Math.max(0, tsoll2 - ta) : 0;
+    Q_WW[h] = 0; // WW deaktiviert für Debug
+
+    const vl1 = ta < P.T_HG_WE1 ? VL_kurve(ta, P.T_HG_WE1, P.T_Norm, tsoll1, P.VL_aus_WE1) : 0;
+    const vl2 = ta < P.T_HG_WE2 ? VL_kurve(ta, P.T_HG_WE2, P.T_Norm, tsoll2, P.VL_aus_WE2) : 0;
+    // WW-Anforderung entfernt — nur Heizkurve
+    VL_soll[h] = Math.max(vl1, vl2, P.T_soll_tag_WE1); // Mindestens Raum-T wenn keine Heizung läuft
+  }
+  return { Q_WE1, Q_WE2, Q_WW, VL_soll };
+}
+
+// ============================================
+// SIMULATION für ein System
+// ============================================
+function simulate(sysKey, T_aus, loads) {
+  const T_aus_avg7d = rollingMean(T_aus, 24 * 7);
+
+  // Puffer: 3 Schichten je V/3 Liter
+  const V_layer = P.V_Puffer / 3;
+  const C_layer = V_layer * C_WATER; // kWh/K
+  let T_top = 50, T_mid = 40, T_bot = 30;
+
+  // Ergebnisarrays
+  const N = HOURS;
+  const ts = {
+    Q_load: new Float32Array(N),
+    Q_gen: new Float32Array(N),
+    Q_wp: new Float32Array(N),
+    Q_stab: new Float32Array(N),
+    Q_loss: new Float32Array(N),
+    cop: new Float32Array(N),
+    e_strom: new Float32Array(N),
+    e_oel: new Float32Array(N),
+    e_holz: new Float32Array(N),
+    T_top: new Float32Array(N),
+    T_mid: new Float32Array(N),
+    T_bot: new Float32Array(N),
+    bivalent: new Uint8Array(N), // 1 wenn Heizstab läuft
+    undersupply: new Uint8Array(N), // 1 wenn T_top < VL_soll
   };
-  const foerder = {
-    holz: Math.min(brutto.holz * P.Foerder_Satz, P.Foerder_Max) * P.Foerder_Aktiv,
-    oel: 0, stab: 0,
-    lwwp: Math.min(brutto.lwwp * P.Foerder_Satz, P.Foerder_Max) * P.Foerder_Aktiv,
-    a29: Math.min(brutto.a29 * P.Foerder_Satz, P.Foerder_Max) * P.Foerder_Aktiv,
-    b33: Math.min(brutto.b33 * P.Foerder_Satz, P.Foerder_Max) * P.Foerder_Aktiv,
-  };
-  const netto_mF = {
-    holz: brutto.holz - foerder.holz, oel: brutto.oel, stab: brutto.stab,
-    lwwp: brutto.lwwp - foerder.lwwp, a29: brutto.a29 - foerder.a29, b33: brutto.b33 - foerder.b33,
-  };
-  const netto_oF = { ...brutto };
+
+  // Erzeuger-Hysterese
+  let gen_running = false;
+
+  for (let h = 0; h < N; h++) {
+    const T_a = T_aus[h];
+    const VL = loads.VL_soll[h];
+    const Q_demand = loads.Q_WE1[h] + loads.Q_WE2[h] + loads.Q_WW[h];
+    ts.Q_load[h] = Q_demand;
+
+    // 1) Pufferverluste (auf alle Schichten)
+    const loss_top = P.k_Verlust * P.V_Puffer * Math.max(0, T_top - P.T_Umg) / 3;
+    const loss_mid = P.k_Verlust * P.V_Puffer * Math.max(0, T_mid - P.T_Umg) / 3;
+    const loss_bot = P.k_Verlust * P.V_Puffer * Math.max(0, T_bot - P.T_Umg) / 3;
+    T_top -= loss_top / C_layer;
+    T_mid -= loss_mid / C_layer;
+    T_bot -= loss_bot / C_layer;
+    const Q_loss_total = loss_top + loss_mid + loss_bot;
+    ts.Q_loss[h] = Q_loss_total;
+
+    // 2) Last-Entladung aus oberster Schicht
+    // Vereinfacht: wenn T_top > VL: Last entnimmt aus oben, RL kommt unten rein
+    // Wenn T_top < VL: Unterdeckung
+    if (T_top >= VL - 1) {
+      // Wärmeentnahme reduziert T_top, kalter RL erhöht T_bot
+      T_top -= Q_demand / C_layer;
+      const T_RL = Math.max(P.T_Umg, VL - 10);
+      // Massenfluss verschiebt Wasser: oberste sinkt, unterste steigt
+      // Vereinfacht: T_bot bewegt sich Richtung T_RL, gewichtet mit Q
+      const flow_frac = Math.min(1, Q_demand / (C_layer * 30)); // 30K typische Spreizung
+      T_bot = T_bot * (1 - flow_frac) + T_RL * flow_frac;
+    } else {
+      // Unterdeckung: trotzdem entnehmen, aber als Defizit markieren
+      T_top -= Q_demand / C_layer;
+      ts.undersupply[h] = 1;
+    }
+
+    // 3) Konvektive Schichtungs-Korrektur (heißer unter kälter → tauschen via simpler Mischung)
+    if (T_bot > T_mid) { const m = (T_bot + T_mid) / 2; T_bot = m; T_mid = m; }
+    if (T_mid > T_top) { const m = (T_mid + T_top) / 2; T_mid = m; T_top = m; }
+
+    // 4) Erzeuger-Logik
+    // Q_gen ≈ Q_demand + minimale Puffernachladung. Brenner takten in der Realität sub-stündlich;
+    // wir approximieren das durch eine bedarfsproportionale Leistung mit kleinem Aufschlag.
+    const T_max_buf = 75;
+    const T_min_buf = Math.max(VL + 2, P.T_WW + 5);
+
+    if (T_max_buf > T_min_buf) {
+      // Hysterese: Erzeuger an wenn Pufferspitze unter VL+5, aus wenn deutlich darüber
+      if (!gen_running && T_top < VL + 3) gen_running = true;
+      if (gen_running && T_top > VL + 12) gen_running = false;
+    }
+
+    // Soll-Leistung in dieser Stunde: deckt aktuelle Last + nur soviel Puffer-Recharge
+    // wie nötig damit T_top wieder Richtung VL+10 läuft
+    let Q_target = 0;
+    if (gen_running) {
+      // Anteil der aktuellen Last muss erzeugt werden
+      Q_target = Q_demand;
+      // Plus: kleiner Recharge wenn T_top deutlich unter Soll
+      if (T_top < VL + 8) {
+        const deficit = (VL + 10 - T_top) * C_layer;
+        Q_target += Math.min(5, deficit / 2); // max 5 kW Nachladung, gestreckt auf 2h
+      }
+      Q_target = Math.max(0, Q_target);
+    }
+
+    let Q_gen_h = 0, Q_wp_h = 0, Q_stab_h = 0, cop_h = 1.0;
+    let e_strom_h = 0, e_oel_h = 0, e_holz_h = 0;
+
+    if (gen_running) {
+      // Wieviel Energie kann der Puffer noch aufnehmen bis er voll ist (T_top, T_mid auf 80°C max)
+      const T_max = 80;
+      const headroom_top = Math.max(0, T_max - T_top) * C_layer;
+      const headroom_mid = Math.max(0, T_max - T_mid) * C_layer;
+      const headroom = headroom_top + headroom_mid * 0.5; // mid wird langsamer mit warmer aufgeladen
+
+      // Außerdem: max. 1h Wärmebedarf vorausladen, sonst takten Brenner zu kurz
+      const headroom_capped = Math.min(headroom, Math.max(50, Q_demand * 4));
+
+      if (sysKey === 'oel') {
+        const kW = 26;
+        const Q = Math.min(kW, headroom);
+        Q_gen_h = Q; Q_wp_h = 0;
+        // E_oel direkt in Litern: Q [kWh] / (HW [kWh/L] · eta)
+        e_oel_h = Q / (P.HW_Oel * P.eta_Oel);
+        cop_h = P.eta_Oel;
+      } else if (sysKey === 'holz') {
+        // Holzvergaser: feuert wenn überhaupt, dann mit voller Last bis Puffer voll
+        const kW = 50;
+        const Q = Math.min(kW, headroom);
+        Q_gen_h = Q; Q_wp_h = 0;
+        // E_holz als Brennstoff-Endenergie in kWh (= Q / eta), Umrechnung in RM erst beim Plotten/Kosten
+        e_holz_h = Q / P.eta_Holz;
+        cop_h = P.eta_Holz;
+      } else {
+        // Wärmepumpe (lwwp/a29/b33)
+        const wp = WP[sysKey];
+        const T_q = wp.quelle === 'sole' ? T_sole(T_aus_avg7d[h]) : T_a;
+        const VL_real = Math.min(VL, wp.vlMax); // WP läuft auf Limit
+        const cop = copCarnot(VL_real, T_q, wp.eta);
+        const kW_wp_max = WP_kWmax(sysKey, T_a, VL_real);
+        const Q_wp = Math.min(kW_wp_max, headroom);
+        Q_wp_h = Q_wp;
+        e_strom_h += Q_wp / cop;
+        cop_h = cop;
+
+        if (VL > wp.vlMax) {
+          // Bivalent: Heizstab schießt nach für die Temperaturanhebung
+          const T_RL = Math.max(P.T_Umg, VL - 10);
+          const stab_frac = Math.max(0, Math.min(1, (VL - wp.vlMax) / (VL - T_RL)));
+          // Stab proportional zum Q_target, nicht zur Last
+          const Q_stab = Math.min(P.Stab_kW, stab_frac * Q_target);
+          Q_stab_h = Q_stab;
+          e_strom_h += Q_stab;
+          ts.bivalent[h] = 1;
+          if (Q_wp > 0 && Q_stab > 0) {
+            cop_h = (Q_wp + Q_stab) / (Q_wp / cop + Q_stab);
+          }
+        }
+        Q_gen_h = Q_wp + Q_stab_h;
+      }
+
+      // 5) Erzeugungsenergie in oberste Schicht
+      // Energie geht oben rein, gecappt auf T_max
+      T_top += Q_gen_h / C_layer;
+      if (T_top > 85) {
+        // Überschuss in mid abgeben (Konvektion)
+        const overflow = (T_top - 85) * C_layer;
+        T_top = 85;
+        T_mid += overflow / C_layer;
+      }
+      // Wenn T_top stark > T_mid: Wärmeleitung
+      if (T_top > T_mid + 25) {
+        const mix = (T_top - T_mid - 20) * 0.3;
+        T_top -= mix * 0.5;
+        T_mid += mix * 0.5;
+      }
+    }
+
+    ts.Q_gen[h] = Q_gen_h;
+    ts.Q_wp[h] = Q_wp_h;
+    ts.Q_stab[h] = Q_stab_h;
+    ts.cop[h] = cop_h;
+    ts.e_strom[h] = e_strom_h;
+    ts.e_oel[h] = e_oel_h;
+    ts.e_holz[h] = e_holz_h;
+    ts.T_top[h] = T_top;
+    ts.T_mid[h] = T_mid;
+    ts.T_bot[h] = T_bot;
+  }
+
+  // Aggregation
+  const sum = a => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i]; return s; };
+  const Q_load_sum = sum(ts.Q_load);
+  const Q_gen_sum = sum(ts.Q_gen);
+  const Q_wp_sum = sum(ts.Q_wp);
+  const Q_stab_sum = sum(ts.Q_stab);
+  const Q_loss_sum = sum(ts.Q_loss);
+  const E_strom_sum = sum(ts.e_strom);
+  const E_oel_sum = sum(ts.e_oel);
+  const E_holz_sum = sum(ts.e_holz);
+  const bivalent_h = ts.bivalent.reduce((s, v) => s + v, 0);
+  const undersupply_h = ts.undersupply.reduce((s, v) => s + v, 0);
+
+  const E_wp_only = E_strom_sum - Q_stab_sum;
+  const scop_clean = E_wp_only > 0 ? Q_wp_sum / E_wp_only : 0;
 
   return {
-    Verb_Total,
-    waerme: { holz: C_Holz, oel: C_Oel, stab: C_Stab, lwwp: C_LWWP, a29: C_A29, b33: C_B33 },
-    wpMetrics: { lwwp: wpL, a29: wpA, b33: wpB },
-    brutto, foerder, netto_mF, netto_oF,
-    opex_solo: {
-      holz: Verb_Total * C_Holz, oel: Verb_Total * C_Oel, stab: Verb_Total * C_Stab,
-      lwwp: Verb_Total * C_LWWP, a29: Verb_Total * C_A29, b33: Verb_Total * C_B33,
+    ts,
+    kpi: {
+      Q_load: Q_load_sum, Q_gen: Q_gen_sum, Q_wp: Q_wp_sum, Q_stab: Q_stab_sum, Q_loss: Q_loss_sum,
+      E_strom: E_strom_sum, E_oel: E_oel_sum, E_holz: E_holz_sum,
+      scop: scop_clean, bivalent_h, undersupply_h,
+      bivalent_pct: Q_wp_sum + Q_stab_sum > 0 ? Q_stab_sum / (Q_wp_sum + Q_stab_sum) : 0,
+      coverage: 1 - undersupply_h / HOURS,
+      // Debug: Energiebilanz-Quotient. Sollte ~1 sein. <1 = Erzeuger zu schwach. >1 = überproduziert.
+      gen_load_ratio: Q_load_sum > 0 ? Q_gen_sum / (Q_load_sum + Q_loss_sum) : 0,
     },
   };
 }
 
 // ============================================
-// CHART HELPERS
+// MASTER STATE
+// ============================================
+const STATE = {
+  T_aus: null,
+  loads: null,
+  results: {},
+};
+
+function runFullSim() {
+  STATE.T_aus = buildWeather();
+  STATE.loads = buildLoads(STATE.T_aus);
+  STATE.results = {};
+  for (const k of ['lwwp', 'a29', 'b33', 'oel', 'holz']) {
+    STATE.results[k] = simulate(k, STATE.T_aus, STATE.loads);
+  }
+}
+
+// ============================================
+// FORMAT HELPERS
 // ============================================
 const fmt0 = n => Math.round(n).toLocaleString('de-DE');
 const fmt1 = n => n.toLocaleString('de-DE', { maximumFractionDigits: 1 });
@@ -852,22 +785,52 @@ const fmt2 = n => n.toLocaleString('de-DE', { maximumFractionDigits: 2 });
 const fmt3 = n => n.toLocaleString('de-DE', { maximumFractionDigits: 3 });
 const pct = n => (n * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 }) + '%';
 
+// ============================================
+// CHART HELPERS
+// ============================================
 const charts = {};
 const chartDefaults = {
   responsive: true, maintainAspectRatio: false,
-  font: { family: 'Inter, system-ui, sans-serif' },
+  animation: false,
   plugins: {
     legend: { display: false },
     tooltip: {
       backgroundColor: 'rgba(28,28,26,0.95)',
-      titleFont: { size: 12, weight: '500' },
-      bodyFont: { size: 12 },
+      titleFont: { size: 12 }, bodyFont: { size: 12 },
       padding: 10, cornerRadius: 6,
     }
-  }
+  },
 };
-function gridStyle() { return { color: 'rgba(0,0,0,0.05)', borderColor: 'rgba(0,0,0,0.1)' }; }
-function tickFont() { return { size: 11, family: 'Inter, system-ui, sans-serif' }; }
+const grid = () => ({ color: 'rgba(0,0,0,0.05)', borderColor: 'rgba(0,0,0,0.1)' });
+const tickF = () => ({ size: 11, family: 'Inter, system-ui, sans-serif' });
+
+// Subsampling für lange Zeitreihen
+function subsample(arr, every) {
+  const out = [];
+  for (let i = 0; i < arr.length; i += every) out.push(arr[i]);
+  return out;
+}
+
+// Tagesmittel
+function dailyMean(arr) {
+  const out = new Float32Array(365);
+  for (let d = 0; d < 365; d++) {
+    let s = 0;
+    for (let h = 0; h < 24; h++) s += arr[d * 24 + h];
+    out[d] = s / 24;
+  }
+  return out;
+}
+
+function dailySum(arr) {
+  const out = new Float32Array(365);
+  for (let d = 0; d < 365; d++) {
+    let s = 0;
+    for (let h = 0; h < 24; h++) s += arr[d * 24 + h];
+    out[d] = s;
+  }
+  return out;
+}
 
 // ============================================
 // INPUT GENERATORS
@@ -879,447 +842,800 @@ function makeInput(container, key, label, unit, step = 1) {
   container.appendChild(div);
   div.querySelector('input').addEventListener('input', e => {
     P[key] = parseFloat(e.target.value) || 0;
-    renderAll();
+    rerun();
   });
 }
 
 function setupInputs() {
   const grp = id => document.getElementById(id);
-  makeInput(grp('inputs-verbrauch'), 'Verb_WE1', 'WE1 Altbau', 'kWh/a', 500);
-  makeInput(grp('inputs-verbrauch'), 'Verb_WE2', 'WE2 Neubau', 'kWh/a', 500);
+  makeInput(grp('inputs-klima'), 'T_mittel', 'Jahres-Mitteltemperatur', '°C', 0.5);
+  makeInput(grp('inputs-klima'), 'T_amp', 'Jahres-Amplitude', 'K', 0.5);
+  makeInput(grp('inputs-klima'), 'T_tagesgang', 'Tagesgang Amplitude', 'K', 0.5);
+  makeInput(grp('inputs-klima'), 'Kaeltewellen_intensity', 'Kältewellen-Intensität', '–', 0.1);
+  makeInput(grp('inputs-klima'), 'seed', 'Random-Seed', '–', 1);
 
-  makeInput(grp('inputs-holz'), 'P_Holz', 'Preis Raummeter', '€/RM', 5);
-  makeInput(grp('inputs-holz'), 'HW_Holz', 'Heizwert', 'kWh/RM', 50);
-  makeInput(grp('inputs-holz'), 'Eta_Holz', 'Wirkungsgrad', '%', 1);
+  makeInput(grp('inputs-we1'), 'Q_norm_WE1', 'Norm-Heizlast', 'kW', 0.5);
+  makeInput(grp('inputs-we1'), 'T_Norm', 'Auslegungs-T_aus', '°C', 1);
+  makeInput(grp('inputs-we1'), 'T_HG_WE1', 'Heizgrenze', '°C', 1);
+  makeInput(grp('inputs-we1'), 'VL_aus_WE1', 'VL bei T_Norm', '°C', 1);
+  makeInput(grp('inputs-we1'), 'T_soll_tag_WE1', 'Raum-T tags', '°C', 0.5);
+  makeInput(grp('inputs-we1'), 'T_soll_nacht_WE1', 'Raum-T nachts', '°C', 0.5);
 
-  makeInput(grp('inputs-oel'), 'P_Oel', 'Heizöl-Preis', '€/L', 0.05);
-  makeInput(grp('inputs-oel'), 'HW_Oel', 'Heizwert', 'kWh/L', 0.5);
-  makeInput(grp('inputs-oel'), 'Eta_Oel', 'Wirkungsgrad', '%', 1);
+  makeInput(grp('inputs-we2'), 'Q_norm_WE2', 'Norm-Heizlast', 'kW', 0.5);
+  makeInput(grp('inputs-we2'), 'T_HG_WE2', 'Heizgrenze', '°C', 1);
+  makeInput(grp('inputs-we2'), 'VL_aus_WE2', 'VL bei T_Norm', '°C', 1);
+  makeInput(grp('inputs-we2'), 'T_soll_tag_WE2', 'Raum-T tags', '°C', 0.5);
+  makeInput(grp('inputs-we2'), 'T_soll_nacht_WE2', 'Raum-T nachts', '°C', 0.5);
 
-  makeInput(grp('inputs-strom'), 'P_Strom', 'Netzbezug', '€/kWh', 0.01);
-  makeInput(grp('inputs-strom'), 'P_Einsp', 'PV-Einspeisung', '€/kWh', 0.01);
+  makeInput(grp('inputs-ww'), 'WW_kWh_d', 'WW-Bedarf', 'kWh/d', 0.5);
+  makeInput(grp('inputs-ww'), 'T_WW', 'WW-Speichertemp.', '°C', 1);
 
-  // Heizkurve · NEU
-  makeInput(grp('inputs-heizkurve'), 'VL_Auslegung', 'VL bei Auslegungstemp.', '°C', 1);
-  makeInput(grp('inputs-heizkurve'), 'T_Norm', 'Norm-Außentemperatur', '°C', 1);
-  makeInput(grp('inputs-heizkurve'), 'T_Heizgrenze', 'Heizgrenze', '°C', 1);
-  makeInput(grp('inputs-heizkurve'), 'T_Raum', 'Raum-Solltemperatur', '°C', 1);
+  makeInput(grp('inputs-puffer'), 'V_Puffer', 'Volumen', 'L', 250);
+  makeInput(grp('inputs-puffer'), 'T_Umg', 'Heizraum-T', '°C', 1);
+  makeInput(grp('inputs-puffer'), 'k_Verlust', 'Verlustkoeff.', 'kWh/(K·h·L)', 0.0000005);
 
-  makeInput(grp('inputs-stab'), 'Eta_Stab', 'Wirkungsgrad', '%', 1);
-
-  makeInput(grp('inputs-foerder'), 'Foerder_Satz', 'Fördersatz', '–', 0.05);
-  makeInput(grp('inputs-foerder'), 'Foerder_Max', 'Maximalbetrag', '€', 1000);
-  makeInput(grp('inputs-foerder'), 'Foerder_Aktiv', 'Aktiv (1=ja, 0=nein)', '–', 0.1);
-
-  makeInput(grp('inputs-mix'), 'Anteil_Holz', 'Holz-Anteil', '–', 0.05);
-  makeInput(grp('inputs-mix'), 'Anteil_Backup', 'Backup-Anteil', '–', 0.05);
-
-  makeInput(grp('inputs-forecast'), 'Inflation_Oel', 'Ölpreis-Steigerung/a', '–', 0.01);
-  makeInput(grp('inputs-forecast'), 'Inflation_Strom', 'Strompreis-Steigerung/a', '–', 0.01);
-  makeInput(grp('inputs-forecast'), 'Inflation_Holz', 'Holzpreis-Steigerung/a', '–', 0.01);
-
-  // WP-Effizienz Tab Szenarien
-  document.getElementById('vl-a').addEventListener('input', e => { P.WP_VL_A = parseFloat(e.target.value) || 35; renderWpEff(); });
-  document.getElementById('vl-b').addEventListener('input', e => { P.WP_VL_B = parseFloat(e.target.value) || 65; renderWpEff(); });
-  document.getElementById('tout-a').addEventListener('input', e => { P.WP_Tout_A = parseFloat(e.target.value) || 5; renderWpEff(); });
-  document.getElementById('tout-b').addEventListener('input', e => { P.WP_Tout_B = parseFloat(e.target.value) || -12; renderWpEff(); });
+  makeInput(grp('inputs-preise-1'), 'P_Strom', 'Strompreis', '€/kWh', 0.01);
+  makeInput(grp('inputs-preise-2'), 'P_Oel', 'Heizöl', '€/L', 0.05);
+  makeInput(grp('inputs-preise-3'), 'P_Holz', 'Holz', '€/RM', 5);
 }
 
 // ============================================
-// RENDER · WP Performance Summary (Parameter-Tab)
+// RENDER · ÜBERSICHT
 // ============================================
-function renderWpPerfSummary(r) {
-  const c = document.getElementById('wp-perf-summary');
-  if (!c) return;
-  const items = [
-    { key: 'lwwp', label: 'LWWP', m: r.wpMetrics.lwwp },
-    { key: 'a29', label: 'A29', m: r.wpMetrics.a29 },
-    { key: 'b33', label: 'B33', m: r.wpMetrics.b33 },
-  ];
+function renderOverview() {
+  const r_b33 = STATE.results.b33.kpi;
+  const Q_total = r_b33.Q_load + r_b33.Q_loss;
+  document.getElementById('kpi-q-total').textContent = fmt0(Q_total) + ' kWh/a';
+  document.getElementById('kpi-q-loss').textContent = fmt0(r_b33.Q_loss) + ' kWh/a';
+
+  const c = document.getElementById('overview-cards');
   c.innerHTML = '';
-  for (const it of items) {
-    const row = document.createElement('div');
-    row.className = 'perf-summary';
-    const status = !it.m.bivalent ? '<span class="pill ok">OK</span>'
-                 : it.m.stab_anteil < 0.05 ? '<span class="pill warn">knapp</span>'
-                 : '<span class="pill bad">Bivalent</span>';
-    row.innerHTML = `
-      <div class="name" style="color: ${WP[it.key].col};">${it.label}</div>
-      <div><div class="lbl">SCOP</div><div class="val">${fmt2(it.m.scop)}</div></div>
-      <div><div class="lbl">Stab-Anteil</div><div class="val">${pct(it.m.stab_anteil)}</div></div>
-      <div>${status}</div>
-    `;
-    c.appendChild(row);
+  const order = ['b33', 'a29', 'lwwp', 'holz', 'oel'];
+  const names = { b33: 'SWWP B33 · 350-G', a29: 'SWWP A29 · 300-G', lwwp: 'LWWP Vaillant', holz: 'Holzvergaser S3', oel: 'Ölkessel Vitoladens' };
+  for (const k of order) {
+    const r = STATE.results[k].kpi;
+    const cost = r.E_strom * P.P_Strom + r.E_oel * P.P_Oel + (r.E_holz / P.HW_Holz) * P.P_Holz;
+    const status = k === 'oel' || k === 'holz'
+      ? '<span class="pill ok">Brenner</span>'
+      : r.bivalent_pct < 0.02 ? '<span class="pill ok">Sauber WP</span>'
+      : r.bivalent_pct < 0.10 ? `<span class="pill warn">Bivalent ${pct(r.bivalent_pct)}</span>`
+      : `<span class="pill bad">Bivalent ${pct(r.bivalent_pct)}</span>`;
+    const scopRow = (k === 'oel' || k === 'holz') ? '' : `<div class="key">SCOP</div><div class="val">${fmt2(r.scop)}</div>`;
+    const eRow = k === 'oel' ? `<div class="key">Heizöl</div><div class="val">${fmt0(r.E_oel)} L</div>`
+      : k === 'holz' ? `<div class="key">Holz</div><div class="val">${fmt1(r.E_holz / P.HW_Holz)} RM</div>`
+      : `<div class="key">Strom</div><div class="val">${fmt0(r.E_strom)} kWh</div>`;
+    // DEBUG: Energiebilanz-Quotient
+    const ratioColor = (r.gen_load_ratio > 1.5 || r.gen_load_ratio < 0.8) ? 'var(--col-bad)' : 'var(--text)';
+    c.innerHTML += `
+      <div class="system-card ${k}">
+        <h3>${names[k]}</h3>
+        <div class="system-meta">${status}</div>
+        <div class="kpi-grid">
+          <div class="key">Bedarf (Last)</div><div class="val">${fmt0(r.Q_load)} kWh</div>
+          <div class="key">Erzeugt</div><div class="val">${fmt0(r.Q_gen)} kWh</div>
+          <div class="key">Verluste</div><div class="val">${fmt0(r.Q_loss)} kWh</div>
+          <div class="key">Q_gen / (Last+Verl)</div><div class="val" style="color: ${ratioColor};">${fmt2(r.gen_load_ratio)}</div>
+          ${scopRow}
+          ${eRow}
+          <div class="key">Jahreskosten</div><div class="val">${fmt0(cost)} €</div>
+          <div class="key">VL-Deckung</div><div class="val">${pct(r.coverage)}</div>
+        </div>
+      </div>`;
   }
 }
 
 // ============================================
-// RENDER · CAPEX (mit dynamischen SCOPs in System-Cards)
+// RENDER · WETTER & LAST
 // ============================================
-function renderCapex(r) {
-  const labels = ['Heizstab', 'Holzvergaser', 'SWWP A29', 'Ölkessel', 'LWWP', 'SWWP B33'];
-  const keys = ['stab', 'holz', 'a29', 'oel', 'lwwp', 'b33'];
-  const colors = keys.map(k => COL[k]);
+function renderWeather() {
+  const T = STATE.T_aus;
+  let tmin = Infinity, tmax = -Infinity;
+  for (let i = 0; i < T.length; i++) { if (T[i] < tmin) tmin = T[i]; if (T[i] > tmax) tmax = T[i]; }
+  document.getElementById('t-extremes').textContent = `${fmt1(tmin)}°C ... ${fmt1(tmax)}°C`;
 
-  if (!charts.capex) {
-    charts.capex = new Chart(document.getElementById('chart-capex'), {
-      type: 'bar',
-      data: { labels, datasets: [
-        { label: 'Mit Förderung', data: [], backgroundColor: colors, borderRadius: 4, barPercentage: 0.7, categoryPercentage: 0.85 },
-        { label: 'Ohne Förderung', data: [], backgroundColor: colors.map(c => c + '60'), borderRadius: 4, barPercentage: 0.7, categoryPercentage: 0.85 }
-      ]},
-      options: { ...chartDefaults,
-        scales: {
-          y: { beginAtZero: true, grid: gridStyle(), ticks: { ...tickFont(), callback: v => fmt0(v / 1000) + 'k €' } },
-          x: { grid: { display: false }, ticks: tickFont() }
-        }
+  // Tageswerte (Mittel + Min + Max)
+  const days = Array.from({length: 365}, (_, i) => i);
+  const tDay = dailyMean(T);
+  const tMin = new Float32Array(365), tMax = new Float32Array(365);
+  for (let d = 0; d < 365; d++) {
+    let mn = Infinity, mx = -Infinity;
+    for (let h = 0; h < 24; h++) { const v = T[d*24+h]; if (v < mn) mn = v; if (v > mx) mx = v; }
+    tMin[d] = mn; tMax[d] = mx;
+  }
+
+  if (charts.tout) charts.tout.destroy();
+  charts.tout = new Chart(document.getElementById('chart-tout'), {
+    type: 'line',
+    data: { labels: days, datasets: [
+      { label: 'T max', data: Array.from(tMax).map(v => +v.toFixed(1)), borderColor: 'rgba(184,58,26,0.4)', borderWidth: 1, pointRadius: 0, fill: '+1', backgroundColor: 'rgba(184,58,26,0.08)' },
+      { label: 'T min', data: Array.from(tMin).map(v => +v.toFixed(1)), borderColor: 'rgba(91,168,224,0.5)', borderWidth: 1, pointRadius: 0 },
+      { label: 'T mittel', data: Array.from(tDay).map(v => +v.toFixed(1)), borderColor: COL.tout, borderWidth: 1.8, pointRadius: 0, tension: 0.2 },
+    ]},
+    options: { ...chartDefaults,
+      plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 18, boxHeight: 3, padding: 10 } } },
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        y: { grid: grid(), ticks: { ...tickF(), callback: v => v + '°C' } },
+        x: { grid: { display: false }, ticks: { ...tickF(), maxTicksLimit: 12, callback: function(v) { const d = parseInt(this.getLabelForValue(v)); const m = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez']; const ms = [0,31,59,90,120,151,181,212,243,273,304,334]; for (let i = 11; i >= 0; i--) if (d >= ms[i]) return d === ms[i] ? m[i] : ''; return ''; } } }
       }
-    });
+    }
+  });
+
+  // Lasten als Tagessummen
+  const qWE1 = dailySum(STATE.loads.Q_WE1);
+  const qWE2 = dailySum(STATE.loads.Q_WE2);
+  const qWW = dailySum(STATE.loads.Q_WW);
+
+  if (charts.loads) charts.loads.destroy();
+  charts.loads = new Chart(document.getElementById('chart-loads'), {
+    type: 'line',
+    data: { labels: days, datasets: [
+      { label: 'WE1 Altbau', data: Array.from(qWE1).map(v => +v.toFixed(0)), borderColor: COL.oel, backgroundColor: COL.oel + '60', borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: true, stack: 'load' },
+      { label: 'WE2 Neubau', data: Array.from(qWE2).map(v => +v.toFixed(0)), borderColor: COL.a29, backgroundColor: COL.a29 + '60', borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: true, stack: 'load' },
+      { label: 'Warmwasser', data: Array.from(qWW).map(v => +v.toFixed(0)), borderColor: COL.stab, backgroundColor: COL.stab + '60', borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: true, stack: 'load' },
+    ]},
+    options: { ...chartDefaults,
+      plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 14, boxHeight: 14, padding: 10 } } },
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        y: { stacked: true, beginAtZero: true, grid: grid(), ticks: { ...tickF(), callback: v => fmt0(v) + ' kWh' } },
+        x: { grid: { display: false }, ticks: { ...tickF(), maxTicksLimit: 12, callback: function(v) { const d = parseInt(this.getLabelForValue(v)); const m = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez']; const ms = [0,31,59,90,120,151,181,212,243,273,304,334]; for (let i = 11; i >= 0; i--) if (d >= ms[i]) return d === ms[i] ? m[i] : ''; return ''; } } }
+      }
+    }
+  });
+
+  // VL-Anforderung Tagesmittel + Min/Max
+  // Aufgeschlüsselt: VL aus Heizkurve (max WE1, WE2) vs WW-Floor
+  const vlHeizMean = new Float32Array(365);
+  const vlHeizMax = new Float32Array(365);
+  const vlCombMax = new Float32Array(365);
+  for (let d = 0; d < 365; d++) {
+    let sumH = 0, mxH = 0, mxC = 0;
+    for (let h = 0; h < 24; h++) {
+      const i = d * 24 + h;
+      const ta = STATE.T_aus[i];
+      const tsoll1 = T_soll_we(i, P.T_soll_tag_WE1, P.T_soll_nacht_WE1);
+      const tsoll2 = T_soll_we(i, P.T_soll_tag_WE2, P.T_soll_nacht_WE2);
+      const vl1 = ta < P.T_HG_WE1 ? VL_kurve(ta, P.T_HG_WE1, P.T_Norm, tsoll1, P.VL_aus_WE1) : 0;
+      const vl2 = ta < P.T_HG_WE2 ? VL_kurve(ta, P.T_HG_WE2, P.T_Norm, tsoll2, P.VL_aus_WE2) : 0;
+      const vlHeiz = Math.max(vl1, vl2);
+      sumH += vlHeiz;
+      if (vlHeiz > mxH) mxH = vlHeiz;
+      if (STATE.loads.VL_soll[i] > mxC) mxC = STATE.loads.VL_soll[i];
+    }
+    vlHeizMean[d] = sumH / 24;
+    vlHeizMax[d] = mxH;
+    vlCombMax[d] = mxC;
   }
-  charts.capex.data.datasets[0].data = keys.map(k => Math.round(r.netto_mF[k]));
-  charts.capex.data.datasets[1].data = keys.map(k => Math.round(r.netto_oF[k]));
-  charts.capex.update('none');
+  if (charts.vl) charts.vl.destroy();
+  charts.vl = new Chart(document.getElementById('chart-vl'), {
+    type: 'line',
+    data: { labels: days, datasets: [
+      { label: 'VL Heizkurve max (Heizung pur)', data: Array.from(vlHeizMax).map(v => +v.toFixed(1)), borderColor: COL.oel, borderWidth: 2, pointRadius: 0, tension: 0.2 },
+      { label: 'VL Heizkurve Tages-Ø', data: Array.from(vlHeizMean).map(v => +v.toFixed(1)), borderColor: COL.oel + '80', borderWidth: 1.5, pointRadius: 0, tension: 0.2, borderDash: [3, 2] },
+      { label: 'WW-Anforderung (T_WW + 5)', data: days.map(_ => P.T_WW + 5), borderColor: COL.stab, borderWidth: 1.5, pointRadius: 0, borderDash: [4, 3] },
+      { label: 'VL_soll = max() · resultierend', data: Array.from(vlCombMax).map(v => +v.toFixed(1)), borderColor: COL.vl, borderWidth: 2.5, pointRadius: 0, tension: 0.2 },
+      { label: 'A29 VL_max 60°C', data: days.map(_ => 60), borderColor: COL.a29, borderWidth: 1, borderDash: [2, 4], pointRadius: 0 },
+      { label: 'LWWP VL_max 70°C', data: days.map(_ => 70), borderColor: COL.lwwp, borderWidth: 1, borderDash: [2, 4], pointRadius: 0 },
+      { label: 'B33 VL_max 73°C', data: days.map(_ => 73), borderColor: COL.b33, borderWidth: 1, borderDash: [2, 4], pointRadius: 0 },
+    ]},
+    options: { ...chartDefaults,
+      plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 18, boxHeight: 3, padding: 10 } } },
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        y: { beginAtZero: false, min: 15, max: 80, grid: grid(), ticks: { ...tickF(), callback: v => v + '°C' } },
+        x: { grid: { display: false }, ticks: { ...tickF(), maxTicksLimit: 12, callback: function(v) { const d = parseInt(this.getLabelForValue(v)); const m = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez']; const ms = [0,31,59,90,120,151,181,212,243,273,304,334]; for (let i = 11; i >= 0; i--) if (d >= ms[i]) return d === ms[i] ? m[i] : ''; return ''; } } }
+      }
+    }
+  });
 
-  // Preis-Spans
-  document.getElementById('price-holz-brutto').textContent = fmt0(r.brutto.holz) + ' €';
-  document.getElementById('price-holz-mF').textContent = fmt0(r.netto_mF.holz) + ' €';
-  document.getElementById('price-oel-brutto').textContent = fmt0(r.brutto.oel) + ' €';
-  document.getElementById('price-oel-netto').textContent = fmt0(r.netto_oF.oel) + ' €';
-  document.getElementById('price-stab-brutto').textContent = fmt0(r.brutto.stab) + ' €';
-  document.getElementById('price-stab-netto').textContent = fmt0(r.netto_oF.stab) + ' €';
-  document.getElementById('price-lwwp-brutto').textContent = fmt0(r.brutto.lwwp) + ' €';
-  document.getElementById('price-lwwp-mF').textContent = fmt0(r.netto_mF.lwwp) + ' €';
-  document.getElementById('price-a29-brutto').textContent = fmt0(r.brutto.a29) + ' €';
-  document.getElementById('price-a29-mF').textContent = fmt0(r.netto_mF.a29) + ' €';
-  document.getElementById('price-b33-brutto').textContent = fmt0(r.brutto.b33) + ' €';
-  document.getElementById('price-b33-mF').textContent = fmt0(r.netto_mF.b33) + ' €';
+  // Heizkurve: VL als Funktion der Außentemperatur
+  const T_range = [];
+  for (let t = -15; t <= 20; t += 0.5) T_range.push(t);
+  const VL_WE1_curve = T_range.map(ta => {
+    if (ta >= P.T_HG_WE1) return P.T_soll_tag_WE1;
+    return VL_kurve(ta, P.T_HG_WE1, P.T_Norm, P.T_soll_tag_WE1, P.VL_aus_WE1);
+  });
+  const VL_WE2_curve = T_range.map(ta => {
+    if (ta >= P.T_HG_WE2) return P.T_soll_tag_WE2;
+    return VL_kurve(ta, P.T_HG_WE2, P.T_Norm, P.T_soll_tag_WE2, P.VL_aus_WE2);
+  });
+  const VL_WW_curve = T_range.map(_ => P.T_WW + 5);
+  const VL_combined = T_range.map((_, i) => Math.max(VL_WE1_curve[i], VL_WE2_curve[i], VL_WW_curve[i]));
 
-  // SCOPs in Spec-Tabellen
-  document.getElementById('cap-lwwp-scop').textContent = fmt2(r.wpMetrics.lwwp.scop);
-  document.getElementById('cap-a29-scop').textContent = fmt2(r.wpMetrics.a29.scop);
-  document.getElementById('cap-b33-scop').textContent = fmt2(r.wpMetrics.b33.scop);
+  if (charts.heizkurve) charts.heizkurve.destroy();
+  charts.heizkurve = new Chart(document.getElementById('chart-heizkurve'), {
+    type: 'line',
+    data: { labels: T_range.map(t => t.toFixed(1)), datasets: [
+      { label: 'WE1 Altbau (' + P.VL_aus_WE1 + '°C @ ' + P.T_Norm + '°C)', data: VL_WE1_curve.map(v => +v.toFixed(1)), borderColor: COL.oel, borderWidth: 2, pointRadius: 0, tension: 0 },
+      { label: 'WE2 Neubau (' + P.VL_aus_WE2 + '°C @ ' + P.T_Norm + '°C)', data: VL_WE2_curve.map(v => +v.toFixed(1)), borderColor: COL.a29, borderWidth: 2, pointRadius: 0, tension: 0 },
+      { label: 'Warmwasser (' + (P.T_WW + 5) + '°C konstant)', data: VL_WW_curve.map(v => +v.toFixed(1)), borderColor: COL.stab, borderWidth: 1.5, borderDash: [5, 3], pointRadius: 0 },
+      { label: 'VL_soll = Maximum', data: VL_combined.map(v => +v.toFixed(1)), borderColor: COL.vl, borderWidth: 2.5, pointRadius: 0, tension: 0 },
+      { label: 'A29 VL_max 60°C', data: T_range.map(_ => 60), borderColor: COL.a29 + '80', borderWidth: 1.2, borderDash: [3, 3], pointRadius: 0 },
+      { label: 'LWWP VL_max 70°C', data: T_range.map(_ => 70), borderColor: COL.lwwp + '80', borderWidth: 1.2, borderDash: [3, 3], pointRadius: 0 },
+    ]},
+    options: { ...chartDefaults,
+      plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 18, boxHeight: 3, padding: 10 } } },
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        y: { beginAtZero: false, min: 20, max: 80, grid: grid(), ticks: { ...tickF(), callback: v => v + '°C' }, title: { display: true, text: 'Vorlauftemperatur', font: { size: 11 } } },
+        x: { grid: grid(), title: { display: true, text: 'Außentemperatur (°C)', font: { size: 11 } }, ticks: { ...tickF(), maxTicksLimit: 12 } }
+      }
+    }
+  });
+
+  // Jahresdauerlinie (sortierte stündliche Last)
+  const Q_hourly = new Float32Array(HOURS);
+  for (let i = 0; i < HOURS; i++) Q_hourly[i] = STATE.loads.Q_WE1[i] + STATE.loads.Q_WE2[i] + STATE.loads.Q_WW[i];
+  const sorted = Array.from(Q_hourly).sort((a, b) => b - a);
+  const sub = subsample(sorted, 8);
+
+  if (charts.duration) charts.duration.destroy();
+  charts.duration = new Chart(document.getElementById('chart-duration'), {
+    type: 'line',
+    data: { labels: sub.map((_, i) => i * 8), datasets: [{
+      label: 'Heizlast', data: sub.map(v => +v.toFixed(1)), borderColor: COL.b33, backgroundColor: COL.b33 + '20', borderWidth: 1.8, pointRadius: 0, tension: 0, fill: true,
+    }]},
+    options: { ...chartDefaults,
+      plugins: { ...chartDefaults.plugins, tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => fmt1(c.parsed.y) + ' kW · h ' + c.label } } },
+      scales: {
+        y: { beginAtZero: true, grid: grid(), ticks: { ...tickF(), callback: v => v + ' kW' } },
+        x: { grid: { display: false }, title: { display: true, text: 'Stunde im Jahr (sortiert nach Last)', font: { size: 11 } }, ticks: { ...tickF(), maxTicksLimit: 9 } }
+      }
+    }
+  });
 }
 
 // ============================================
-// RENDER · WÄRMEKOSTEN
+// RENDER · ERGEBNISSE
 // ============================================
-function renderCostKwh(r) {
-  const labels = ['Holz', 'Öl', 'Heizstab', 'LWWP', 'SWWP A29', 'SWWP B33'];
-  const keys = ['holz', 'oel', 'stab', 'lwwp', 'a29', 'b33'];
+function renderResults() {
+  const order = ['b33', 'a29', 'lwwp', 'holz', 'oel'];
+  const labels = order.map(k => ({ b33: 'SWWP B33', a29: 'SWWP A29', lwwp: 'LWWP', holz: 'Holzvergaser', oel: 'Ölkessel' })[k]);
 
-  if (!charts.costKwh) {
-    charts.costKwh = new Chart(document.getElementById('chart-cost-kwh'), {
-      type: 'bar',
-      data: { labels, datasets: [{ data: [], backgroundColor: keys.map(k => COL[k]), borderRadius: 4, barPercentage: 0.65, categoryPercentage: 0.85 }] },
-      options: { ...chartDefaults,
-        plugins: { ...chartDefaults.plugins, tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => fmt3(c.parsed.y) + ' €/kWh' } } },
-        scales: {
-          y: { beginAtZero: true, grid: gridStyle(), ticks: { ...tickFont(), callback: v => fmt2(v) + ' €' } },
-          x: { grid: { display: false }, ticks: tickFont() }
-        }
+  // Energieflüsse — Stacked Bar: WP-Energie, Stab-Energie, Brenner-Energie
+  const Q_wp_data = order.map(k => STATE.results[k].kpi.Q_wp);
+  const Q_stab_data = order.map(k => STATE.results[k].kpi.Q_stab);
+  const Q_brenner = order.map(k => {
+    const r = STATE.results[k].kpi;
+    if (k === 'oel') return r.E_oel * P.HW_Oel * P.eta_Oel;
+    if (k === 'holz') return r.E_holz * P.eta_Holz; // E_holz in kWh Brennstoff, mal eta = nutzbare Wärme
+    return 0;
+  });
+
+  if (charts.flow) charts.flow.destroy();
+  charts.flow = new Chart(document.getElementById('chart-energy-flow'), {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label: 'WP-Wärme', data: Q_wp_data.map(Math.round), backgroundColor: COL.b33, borderRadius: 4, stack: 'gen' },
+      { label: 'Heizstab-Wärme', data: Q_stab_data.map(Math.round), backgroundColor: COL.stab, borderRadius: 4, stack: 'gen' },
+      { label: 'Brenner-Wärme', data: Q_brenner.map(Math.round), backgroundColor: COL.oel, borderRadius: 4, stack: 'gen' },
+    ]},
+    options: { ...chartDefaults,
+      plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 14, boxHeight: 14, padding: 10 } }, tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => c.dataset.label + ': ' + fmt0(c.parsed.y) + ' kWh' } } },
+      scales: {
+        y: { stacked: true, beginAtZero: true, grid: grid(), ticks: { ...tickF(), callback: v => fmt0(v / 1000) + 'k kWh' } },
+        x: { stacked: true, grid: { display: false }, ticks: tickF() }
       }
-    });
-  }
-  charts.costKwh.data.datasets[0].data = keys.map(k => +r.waerme[k].toFixed(4));
-  charts.costKwh.update('none');
-}
+    }
+  });
 
-function renderCostYear(r) {
-  const labels = ['Holz', 'Öl', 'Heizstab', 'LWWP', 'SWWP A29', 'SWWP B33'];
-  const keys = ['holz', 'oel', 'stab', 'lwwp', 'a29', 'b33'];
-
-  if (!charts.costYear) {
-    charts.costYear = new Chart(document.getElementById('chart-cost-year'), {
-      type: 'bar',
-      data: { labels, datasets: [{ data: [], backgroundColor: keys.map(k => COL[k]), borderRadius: 4, barPercentage: 0.65, categoryPercentage: 0.85 }] },
-      options: { ...chartDefaults,
-        plugins: { ...chartDefaults.plugins, tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => fmt0(c.parsed.y) + ' €/Jahr' } } },
-        scales: {
-          y: { beginAtZero: true, grid: gridStyle(), ticks: { ...tickFont(), callback: v => fmt0(v / 1000) + 'k €' } },
-          x: { grid: { display: false }, ticks: tickFont() }
-        }
+  // Endenergie
+  // Auf einheitliche kWh-Skala bringen
+  const E_strom = order.map(k => STATE.results[k].kpi.E_strom);
+  const E_oel_kWh = order.map(k => STATE.results[k].kpi.E_oel * P.HW_Oel);
+  const E_holz_kWh = order.map(k => STATE.results[k].kpi.E_holz); // bereits in kWh
+  if (charts.endE) charts.endE.destroy();
+  charts.endE = new Chart(document.getElementById('chart-endenergy'), {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label: 'Strom', data: E_strom.map(Math.round), backgroundColor: COL.b33, borderRadius: 4, stack: 'e' },
+      { label: 'Heizöl', data: E_oel_kWh.map(Math.round), backgroundColor: COL.oel, borderRadius: 4, stack: 'e' },
+      { label: 'Holz', data: E_holz_kWh.map(Math.round), backgroundColor: COL.holz, borderRadius: 4, stack: 'e' },
+    ]},
+    options: { ...chartDefaults,
+      plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 14, boxHeight: 14, padding: 10 } }, tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => c.dataset.label + ': ' + fmt0(c.parsed.y) + ' kWh' } } },
+      scales: {
+        y: { stacked: true, beginAtZero: true, grid: grid(), ticks: { ...tickF(), callback: v => fmt0(v / 1000) + 'k kWh' } },
+        x: { stacked: true, grid: { display: false }, ticks: tickF() }
       }
-    });
-  }
-  charts.costYear.data.datasets[0].data = keys.map(k => Math.round(r.opex_solo[k]));
-  charts.costYear.update('none');
-}
+    }
+  });
 
-function renderCostRange(r) {
-  const labels = ['Holz', 'Öl', 'Heizstab', 'LWWP', 'SWWP A29', 'SWWP B33'];
-  const m = r.wpMetrics;
-  // min Wärmekosten = strom / cop_max (best day), max = strom / cop_min (worst day)
-  const minVals = [
-    P.P_Holz / (P.HW_Holz * P.Eta_Holz / 100),
-    P.P_Oel / (P.HW_Oel * P.Eta_Oel / 100),
-    P.P_Strom / (P.Eta_Stab / 100),
-    P.P_Strom / m.lwwp.cop_max,
-    P.P_Strom / m.a29.cop_max,
-    P.P_Strom / m.b33.cop_max,
-  ];
-  const maxVals = [
-    minVals[0], minVals[1], minVals[2],
-    P.P_Strom / m.lwwp.cop_min,
-    P.P_Strom / m.a29.cop_min,
-    P.P_Strom / m.b33.cop_min,
-  ];
-  const avgVals = [
-    minVals[0], minVals[1], minVals[2],
-    P.P_Strom / m.lwwp.scop,
-    P.P_Strom / m.a29.scop,
-    P.P_Strom / m.b33.scop,
-  ];
-  const cols = [COL.holz, COL.oel, COL.stab, COL.lwwp, COL.a29, COL.b33];
-
-  if (!charts.costRange) {
-    charts.costRange = new Chart(document.getElementById('chart-cost-range'), {
-      type: 'bar',
-      data: { labels, datasets: [
-        { label: 'min (Best-COP-Tag)', data: [], backgroundColor: cols.map(c => c + '50'), borderRadius: 3, barPercentage: 0.55, categoryPercentage: 0.7 },
-        { label: 'Jahres-SCOP', data: [], backgroundColor: cols, borderRadius: 3, barPercentage: 0.55, categoryPercentage: 0.7 },
-        { label: 'max (Worst-COP-Tag)', data: [], backgroundColor: cols.map(c => c + '90'), borderRadius: 3, barPercentage: 0.55, categoryPercentage: 0.7 },
-      ]},
-      options: { ...chartDefaults,
-        plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, padding: 12, boxWidth: 14, boxHeight: 14 } }, tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => c.dataset.label + ': ' + fmt3(c.parsed.y) + ' €/kWh' } } },
-        scales: {
-          y: { beginAtZero: true, grid: gridStyle(), ticks: { ...tickFont(), callback: v => fmt2(v) + ' €' } },
-          x: { grid: { display: false }, ticks: tickFont() }
-        }
+  // Jahreskosten
+  const cost = order.map(k => {
+    const r = STATE.results[k].kpi;
+    return r.E_strom * P.P_Strom + r.E_oel * P.P_Oel + (r.E_holz / P.HW_Holz) * P.P_Holz;
+  });
+  if (charts.cost) charts.cost.destroy();
+  charts.cost = new Chart(document.getElementById('chart-cost'), {
+    type: 'bar',
+    data: { labels, datasets: [{ data: cost.map(Math.round), backgroundColor: order.map(k => COL[k]), borderRadius: 4, barPercentage: 0.65, categoryPercentage: 0.85 }] },
+    options: { ...chartDefaults,
+      plugins: { ...chartDefaults.plugins, tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => fmt0(c.parsed.y) + ' €/Jahr' } } },
+      scales: {
+        y: { beginAtZero: true, grid: grid(), ticks: { ...tickF(), callback: v => fmt0(v / 1000) + 'k €' } },
+        x: { grid: { display: false }, ticks: tickF() }
       }
-    });
-  }
-  charts.costRange.data.datasets[0].data = minVals.map(v => +v.toFixed(4));
-  charts.costRange.data.datasets[1].data = avgVals.map(v => +v.toFixed(4));
-  charts.costRange.data.datasets[2].data = maxVals.map(v => +v.toFixed(4));
-  charts.costRange.update('none');
+    }
+  });
+
+  // SCOP-Vergleich
+  const wpKeys = ['b33', 'a29', 'lwwp'];
+  const scopLabels = ['SWWP B33', 'SWWP A29', 'LWWP'];
+  const scops = wpKeys.map(k => STATE.results[k].kpi.scop);
+  const stabPct = wpKeys.map(k => STATE.results[k].kpi.bivalent_pct * 100);
+  if (charts.scop) charts.scop.destroy();
+  charts.scop = new Chart(document.getElementById('chart-scop'), {
+    type: 'bar',
+    data: { labels: scopLabels, datasets: [
+      { label: 'SCOP (nur WP)', data: scops.map(v => +v.toFixed(2)), backgroundColor: wpKeys.map(k => COL[k]), borderRadius: 4, yAxisID: 'y1', barPercentage: 0.5, categoryPercentage: 0.7 },
+      { label: 'Heizstab-Anteil %', data: stabPct.map(v => +v.toFixed(1)), backgroundColor: wpKeys.map(k => COL[k] + '70'), borderRadius: 4, yAxisID: 'y2', barPercentage: 0.5, categoryPercentage: 0.7 },
+    ]},
+    options: { ...chartDefaults,
+      plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 14, boxHeight: 14, padding: 10 } }, tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => c.dataset.label + ': ' + fmt2(c.parsed.y) } } },
+      scales: {
+        y1: { type: 'linear', position: 'left', beginAtZero: true, grid: grid(), ticks: { ...tickF(), callback: v => 'SCOP ' + v }, title: { display: true, text: 'SCOP', font: { size: 11 } } },
+        y2: { type: 'linear', position: 'right', beginAtZero: true, grid: { display: false }, ticks: { ...tickF(), callback: v => v + '%' }, title: { display: true, text: 'Heizstab-Anteil', font: { size: 11 } } },
+        x: { grid: { display: false }, ticks: tickF() }
+      }
+    }
+  });
 }
 
 // ============================================
-// RENDER · TCO / AMORT / MIX
+// RENDER · ZEITREIHEN
 // ============================================
-function renderTcoSolo(r) {
-  const horizon = 25;
-  const labels = ['Heizstab', 'Holzvergaser', 'SWWP A29', 'Ölkessel', 'LWWP', 'SWWP B33'];
-  const keys = ['stab', 'holz', 'a29', 'oel', 'lwwp', 'b33'];
-  const tco_mF = keys.map(k => r.netto_mF[k] + r.opex_solo[k] * horizon);
-  const tco_oF = keys.map(k => r.netto_oF[k] + r.opex_solo[k] * horizon);
-  const colors = keys.map(k => COL[k]);
-
-  if (!charts.tcoSolo) {
-    charts.tcoSolo = new Chart(document.getElementById('chart-tco-solo'), {
-      type: 'bar',
-      data: { labels, datasets: [
-        { label: 'Mit Förderung', data: [], backgroundColor: colors, borderRadius: 4, barPercentage: 0.7, categoryPercentage: 0.85 },
-        { label: 'Ohne Förderung', data: [], backgroundColor: colors.map(c => c + '60'), borderRadius: 4, barPercentage: 0.7, categoryPercentage: 0.85 },
-      ]},
-      options: { ...chartDefaults,
-        plugins: { ...chartDefaults.plugins, tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => c.dataset.label + ': ' + fmt0(c.parsed.y) + ' €' } } },
-        scales: {
-          y: { beginAtZero: true, grid: gridStyle(), ticks: { ...tickFont(), callback: v => fmt0(v / 1000) + 'k €' } },
-          x: { grid: { display: false }, ticks: tickFont() }
-        }
-      }
-    });
+function getWindow(name) {
+  switch(name) {
+    case 'winter': return { start: 14 * 24, len: 7 * 24, label: 'Mitte Januar' };
+    case 'trans': return { start: 100 * 24, len: 7 * 24, label: 'Mitte April' };
+    case 'summer': return { start: 197 * 24, len: 7 * 24, label: 'Mitte Juli' };
+    case 'day-cold': {
+      // Find coldest day
+      const dM = dailyMean(STATE.T_aus);
+      let minD = 0, minV = Infinity;
+      for (let d = 0; d < 365; d++) if (dM[d] < minV) { minV = dM[d]; minD = d; }
+      return { start: Math.max(0, minD * 24 - 12), len: 48, label: 'kältester Tag (Tag ' + minD + ')' };
+    }
+    default: return { start: 0, len: HOURS, label: 'ganzes Jahr' };
   }
-  charts.tcoSolo.data.datasets[0].data = tco_mF.map(Math.round);
-  charts.tcoSolo.data.datasets[1].data = tco_oF.map(Math.round);
-  charts.tcoSolo.update('none');
 }
 
-function renderAmortSolo(r, canvasId, useFoerder) {
-  const horizon = 25;
-  const years = Array.from({length: horizon + 1}, (_, i) => i);
-  const keys = ['holz', 'oel', 'stab', 'lwwp', 'a29', 'b33'];
-  const labels = { holz: 'Holzvergaser', oel: 'Ölkessel', stab: 'Heizstab', lwwp: 'LWWP', a29: 'SWWP A29', b33: 'SWWP B33' };
-  const capex = useFoerder ? r.netto_mF : r.netto_oF;
+function renderTimeseries() {
+  const sysKey = document.getElementById('ts-system').value;
+  const winName = document.getElementById('ts-window').value;
+  const win = getWindow(winName);
+  const { start, len } = win;
 
-  const datasets = keys.map(k => ({
-    label: labels[k],
-    data: years.map(y => Math.round(capex[k] + y * r.opex_solo[k])),
-    borderColor: COL[k], backgroundColor: COL[k],
-    borderWidth: 2.2, pointRadius: 0, tension: 0,
+  const r = STATE.results[sysKey];
+  if (!r || !r.ts) return;
+
+  // Patch: stündliche Kosten berechnen falls noch nicht vorhanden
+  // (für alle Systeme nachholen, da später in der Funktion alle benutzt werden)
+  for (const k of ['b33', 'a29', 'lwwp', 'holz', 'oel']) {
+    const rs = STATE.results[k];
+    if (!rs || !rs.ts) continue;
+    if (!rs.ts.cost || rs.ts.cost.length !== HOURS) {
+      rs.ts.cost = new Float32Array(HOURS);
+      for (let i = 0; i < HOURS; i++) {
+        rs.ts.cost[i] =
+          (rs.ts.e_strom[i] || 0) * P.P_Strom +
+          (rs.ts.e_oel[i] || 0) * P.P_Oel +
+          ((rs.ts.e_holz[i] || 0) / P.HW_Holz) * P.P_Holz;
+      }
+    }
+  }
+
+  const useDaily = len > 24 * 14;
+
+  const labels = [];
+  let Tout, VL, Ttop, Tmid, Tbot, Qload, Qwp, Qstab, cop;
+
+  if (useDaily) {
+    // Tagesmittel
+    const startDay = Math.floor(start / 24);
+    const numDays = Math.ceil(len / 24);
+    Tout = []; VL = []; Ttop = []; Tmid = []; Tbot = [];
+    Qload = []; Qwp = []; Qstab = []; cop = [];
+
+    for (let d = 0; d < numDays; d++) {
+      let sT = 0, sV = 0, sTt = 0, sTm = 0, sTb = 0;
+      let sQl = 0, sQw = 0, sQs = 0, sC = 0, cN = 0;
+      const dayStart = (startDay + d) * 24;
+      for (let h = 0; h < 24; h++) {
+        const i = dayStart + h;
+        if (i >= HOURS) break;
+        sT += STATE.T_aus[i];
+        sV += STATE.loads.VL_soll[i];
+        sTt += r.ts.T_top[i];
+        sTm += r.ts.T_mid[i];
+        sTb += r.ts.T_bot[i];
+        sQl += r.ts.Q_load[i];
+        sQw += r.ts.Q_wp[i];
+        sQs += r.ts.Q_stab[i];
+        if (r.ts.Q_wp[i] > 0.1) { sC += r.ts.cop[i]; cN++; }
+      }
+      Tout.push(sT / 24);
+      VL.push(sV / 24);
+      Ttop.push(sTt / 24);
+      Tmid.push(sTm / 24);
+      Tbot.push(sTb / 24);
+      // Lasten als Tagesmittel-Leistung (kW), nicht Tagessumme
+      Qload.push(sQl / 24);
+      Qwp.push(sQw / 24);
+      Qstab.push(sQs / 24);
+      cop.push(cN > 0 ? sC / cN : null);
+      labels.push(startDay + d);
+    }
+  } else {
+    // Stundenwerte direkt für kurze Zeitfenster
+    Tout = []; VL = []; Ttop = []; Tmid = []; Tbot = [];
+    Qload = []; Qwp = []; Qstab = []; cop = [];
+    for (let i = start; i < start + len && i < HOURS; i++) {
+      Tout.push(STATE.T_aus[i]);
+      VL.push(STATE.loads.VL_soll[i]);
+      Ttop.push(r.ts.T_top[i]);
+      Tmid.push(r.ts.T_mid[i]);
+      Tbot.push(r.ts.T_bot[i]);
+      Qload.push(r.ts.Q_load[i]);
+      Qwp.push(r.ts.Q_wp[i]);
+      Qstab.push(r.ts.Q_stab[i]);
+      cop.push(r.ts.cop[i]);
+      const d = Math.floor(i / 24), h = i % 24;
+      labels.push(`d${d} ${h}h`);
+    }
+  }
+
+  if (charts.tsTemps) charts.tsTemps.destroy();
+  charts.tsTemps = new Chart(document.getElementById('chart-ts-temps'), {
+    type: 'line',
+    data: { labels, datasets: [
+      { label: 'T_oben', data: Ttop.map(v => +v.toFixed(1)), borderColor: COL.buf_top, borderWidth: 1.8, pointRadius: 0, tension: 0.3, yAxisID: 'y' },
+      { label: 'T_mitte', data: Tmid.map(v => +v.toFixed(1)), borderColor: COL.buf_mid, borderWidth: 1.5, pointRadius: 0, tension: 0.3, yAxisID: 'y' },
+      { label: 'T_unten', data: Tbot.map(v => +v.toFixed(1)), borderColor: COL.buf_bot, borderWidth: 1.5, pointRadius: 0, tension: 0.3, yAxisID: 'y' },
+      { label: 'VL_soll', data: VL.map(v => +v.toFixed(1)), borderColor: COL.vl, borderWidth: 1.8, borderDash: [4, 3], pointRadius: 0, tension: 0.3, yAxisID: 'y' },
+      { label: 'T_aus', data: Tout.map(v => +v.toFixed(1)), borderColor: COL.tout, borderWidth: 1.4, pointRadius: 0, tension: 0.3, yAxisID: 'y2' },
+    ]},
+    options: { ...chartDefaults,
+      plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 18, boxHeight: 3, padding: 10 } } },
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        y: { position: 'left', grid: grid(), ticks: { ...tickF(), callback: v => v + '°C' }, title: { display: true, text: 'Heizungs-T', font: { size: 11 } } },
+        y2: { position: 'right', grid: { display: false }, ticks: { ...tickF(), callback: v => v + '°C' }, title: { display: true, text: 'Außen-T', font: { size: 11 } } },
+        x: { grid: { display: false }, ticks: { ...tickF(), maxTicksLimit: useDaily ? 12 : 10 } }
+      }
+    }
+  });
+
+  // Power: load vs gen vs stab — in Tagesmittel-Leistung (kW Durchschnitt)
+  if (charts.tsPower) charts.tsPower.destroy();
+  charts.tsPower = new Chart(document.getElementById('chart-ts-power'), {
+    type: 'line',
+    data: { labels, datasets: [
+      { label: useDaily ? 'Last (Tages-Ø)' : 'Last', data: Qload.map(v => +v.toFixed(2)), borderColor: COL.tout, borderWidth: 1.6, pointRadius: 0, tension: 0.3, fill: false },
+      { label: useDaily ? 'WP-Erzeugung (Tages-Ø)' : 'WP-Erzeugung', data: Qwp.map(v => +v.toFixed(2)), borderColor: COL.b33, backgroundColor: COL.b33 + '30', borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: 'origin' },
+      { label: 'Heizstab', data: Qstab.map(v => +v.toFixed(2)), borderColor: COL.stab, backgroundColor: COL.stab + '50', borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: 'origin' },
+    ]},
+    options: { ...chartDefaults,
+      plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 14, boxHeight: 14, padding: 10 } } },
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        y: { beginAtZero: true, grid: grid(), ticks: { ...tickF(), callback: v => v + ' kW' } },
+        x: { grid: { display: false }, ticks: { ...tickF(), maxTicksLimit: useDaily ? 12 : 10 } }
+      }
+    }
+  });
+
+  // COP — bei Tagesmittel: Mittel über aktive Stunden, sonst stündlich
+  if (charts.tsCop) charts.tsCop.destroy();
+  charts.tsCop = new Chart(document.getElementById('chart-ts-cop'), {
+    type: 'line',
+    data: { labels, datasets: [
+      { label: useDaily ? 'COP (Tages-Ø über aktive Stunden)' : 'Stündlicher COP', data: cop.map(v => v === null ? null : +v.toFixed(2)), borderColor: COL[sysKey] || COL.tout, backgroundColor: (COL[sysKey] || COL.tout) + '20', borderWidth: 1.8, pointRadius: 0, tension: 0.3, fill: 'origin', spanGaps: false },
+    ]},
+    options: { ...chartDefaults,
+      plugins: { ...chartDefaults.plugins, legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, max: 7, grid: grid(), ticks: { ...tickF(), stepSize: 1, callback: v => 'COP ' + v } },
+        x: { grid: { display: false }, ticks: { ...tickF(), maxTicksLimit: useDaily ? 12 : 10 } }
+      }
+    }
+  });
+
+  // ---- NEU: Kumulierte Kosten alle Systeme ----
+  const allKeys = ['b33', 'a29', 'lwwp', 'holz', 'oel'];
+  const sysNames = { b33: 'SWWP B33', a29: 'SWWP A29', lwwp: 'LWWP', holz: 'Holzvergaser', oel: 'Ölkessel' };
+
+  const cumCostData = {};
+  const rateData = {};
+  for (const k of allKeys) {
+    const r = STATE.results[k];
+    const cum = [];
+    const rate = [];
+    if (useDaily) {
+      const startDay = Math.floor(start / 24);
+      const numDays = Math.ceil(len / 24);
+      // Kumuliert ab Anfang des Fensters
+      let acc = 0;
+      for (let d = 0; d < numDays; d++) {
+        let dayCost = 0, dayQ = 0;
+        const dayStart = (startDay + d) * 24;
+        for (let h = 0; h < 24; h++) {
+          const i = dayStart + h;
+          if (i >= HOURS) break;
+          dayCost += r.ts.cost[i];
+          dayQ += r.ts.Q_gen[i];
+        }
+        acc += dayCost;
+        cum.push(acc);
+        rate.push(dayQ > 0.5 ? dayCost / dayQ : null);
+      }
+    } else {
+      let acc = 0;
+      for (let i = start; i < start + len && i < HOURS; i++) {
+        acc += r.ts.cost[i];
+        cum.push(acc);
+        rate.push(r.ts.Q_gen[i] > 0.05 ? r.ts.cost[i] / r.ts.Q_gen[i] : null);
+      }
+    }
+    cumCostData[k] = cum;
+    rateData[k] = rate;
+  }
+
+  if (charts.tsCostCum) charts.tsCostCum.destroy();
+  charts.tsCostCum = new Chart(document.getElementById('chart-ts-cost-cum'), {
+    type: 'line',
+    data: { labels, datasets: allKeys.map(k => ({
+      label: sysNames[k],
+      data: cumCostData[k].map(v => Math.round(v)),
+      borderColor: COL[k],
+      backgroundColor: COL[k],
+      borderWidth: 2,
+      pointRadius: 0,
+      tension: 0.2,
+    })) },
+    options: { ...chartDefaults,
+      plugins: { ...chartDefaults.plugins,
+        legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 18, boxHeight: 3, padding: 10 } },
+        tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => c.dataset.label + ': ' + fmt0(c.parsed.y) + ' €' } }
+      },
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        y: { beginAtZero: true, grid: grid(), ticks: { ...tickF(), callback: v => fmt0(v) + ' €' } },
+        x: { grid: { display: false }, ticks: { ...tickF(), maxTicksLimit: useDaily ? 12 : 10 } }
+      }
+    }
+  });
+
+  if (charts.tsCostRate) charts.tsCostRate.destroy();
+  charts.tsCostRate = new Chart(document.getElementById('chart-ts-cost-rate'), {
+    type: 'line',
+    data: { labels, datasets: allKeys.map(k => ({
+      label: sysNames[k],
+      data: rateData[k].map(v => v === null ? null : +v.toFixed(3)),
+      borderColor: COL[k],
+      backgroundColor: COL[k],
+      borderWidth: 2,
+      pointRadius: 0,
+      tension: 0.3,
+      spanGaps: false,
+    })) },
+    options: { ...chartDefaults,
+      plugins: { ...chartDefaults.plugins,
+        legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 18, boxHeight: 3, padding: 10 } },
+        tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => c.dataset.label + ': ' + fmt3(c.parsed.y) + ' €/kWh' } }
+      },
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        y: { beginAtZero: true, grid: grid(), ticks: { ...tickF(), callback: v => fmt2(v) + ' €' }, title: { display: true, text: '€ pro kWh erzeugte Wärme', font: { size: 11 } } },
+        x: { grid: { display: false }, ticks: { ...tickF(), maxTicksLimit: useDaily ? 12 : 10 } }
+      }
+    }
+  });
+}
+
+// ============================================
+// RENDER · PUFFER
+// ============================================
+function renderPuffer() {
+  const sysKey = document.getElementById('puf-system').value;
+  const r = STATE.results[sysKey];
+
+  const days = Array.from({length: 365}, (_, i) => i);
+  const Ttop = dailyMean(r.ts.T_top);
+  const Tmid = dailyMean(r.ts.T_mid);
+  const Tbot = dailyMean(r.ts.T_bot);
+
+  if (charts.pufYear) charts.pufYear.destroy();
+  charts.pufYear = new Chart(document.getElementById('chart-puf-year'), {
+    type: 'line',
+    data: { labels: days, datasets: [
+      { label: 'T oben (Tages-Ø)', data: Array.from(Ttop).map(v => +v.toFixed(1)), borderColor: COL.buf_top, borderWidth: 1.8, pointRadius: 0, tension: 0.2 },
+      { label: 'T mitte', data: Array.from(Tmid).map(v => +v.toFixed(1)), borderColor: COL.buf_mid, borderWidth: 1.5, pointRadius: 0, tension: 0.2 },
+      { label: 'T unten', data: Array.from(Tbot).map(v => +v.toFixed(1)), borderColor: COL.buf_bot, borderWidth: 1.5, pointRadius: 0, tension: 0.2 },
+    ]},
+    options: { ...chartDefaults,
+      plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 18, boxHeight: 3, padding: 10 } } },
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        y: { grid: grid(), ticks: { ...tickF(), callback: v => v + '°C' } },
+        x: { grid: { display: false }, ticks: { ...tickF(), maxTicksLimit: 12, callback: function(v) { const d = parseInt(this.getLabelForValue(v)); const m = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez']; const ms = [0,31,59,90,120,151,181,212,243,273,304,334]; for (let i = 11; i >= 0; i--) if (d >= ms[i]) return d === ms[i] ? m[i] : ''; return ''; } } }
+      }
+    }
+  });
+
+  // Pufferenergie als Tagesmittel
+  const E_ref = 20;
+  const Cl = P.V_Puffer * C_WATER / 3;
+  const eDay = new Float32Array(365);
+  for (let d = 0; d < 365; d++) {
+    let s = 0;
+    for (let h = 0; h < 24; h++) {
+      const i = d * 24 + h;
+      s += Cl * (Math.max(0, r.ts.T_top[i] - E_ref) + Math.max(0, r.ts.T_mid[i] - E_ref) + Math.max(0, r.ts.T_bot[i] - E_ref));
+    }
+    eDay[d] = s / 24;
+  }
+  if (charts.pufE) charts.pufE.destroy();
+  charts.pufE = new Chart(document.getElementById('chart-puf-energy'), {
+    type: 'line',
+    data: { labels: days, datasets: [
+      { label: 'Pufferenergie über 20°C', data: Array.from(eDay).map(v => +v.toFixed(0)), borderColor: COL[sysKey], backgroundColor: COL[sysKey] + '20', borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: true },
+    ]},
+    options: { ...chartDefaults,
+      plugins: { ...chartDefaults.plugins, tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => fmt0(c.parsed.y) + ' kWh' } } },
+      scales: {
+        y: { beginAtZero: true, grid: grid(), ticks: { ...tickF(), callback: v => v + ' kWh' } },
+        x: { grid: { display: false }, ticks: { ...tickF(), maxTicksLimit: 12, callback: function(v) { const d = parseInt(this.getLabelForValue(v)); const m = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez']; const ms = [0,31,59,90,120,151,181,212,243,273,304,334]; for (let i = 11; i >= 0; i--) if (d >= ms[i]) return d === ms[i] ? m[i] : ''; return ''; } } }
+      }
+    }
+  });
+
+  // VL-Deckung
+  const order = ['b33', 'a29', 'lwwp', 'holz', 'oel'];
+  const labels = ['SWWP B33', 'SWWP A29', 'LWWP', 'Holzvergaser', 'Ölkessel'];
+  const cov = order.map(k => STATE.results[k].kpi.coverage * 100);
+  if (charts.pufCov) charts.pufCov.destroy();
+  charts.pufCov = new Chart(document.getElementById('chart-puf-coverage'), {
+    type: 'bar',
+    data: { labels, datasets: [{ data: cov.map(v => +v.toFixed(2)), backgroundColor: order.map(k => COL[k]), borderRadius: 4, barPercentage: 0.65, categoryPercentage: 0.85 }] },
+    options: { ...chartDefaults,
+      plugins: { ...chartDefaults.plugins, tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => fmt2(c.parsed.y) + '%' } } },
+      scales: {
+        y: { beginAtZero: true, max: 100, grid: grid(), ticks: { ...tickF(), callback: v => v + '%' } },
+        x: { grid: { display: false }, ticks: tickF() }
+      }
+    }
+  });
+}
+
+// ============================================
+// RENDER · BIVALENT
+// ============================================
+function renderBivalent() {
+  const wpKeys = ['b33', 'a29', 'lwwp'];
+  // Bin nach T_aus 1°C
+  const tMin = -15, tMax = 17;
+  const bins = tMax - tMin + 1;
+
+  const totalQ = new Array(bins).fill(0);
+  const stabQ = {};
+  for (const k of wpKeys) stabQ[k] = new Array(bins).fill(0);
+
+  for (let h = 0; h < HOURS; h++) {
+    const T = STATE.T_aus[h];
+    const idx = Math.max(0, Math.min(bins - 1, Math.round(T - tMin)));
+    const Q = STATE.loads.Q_WE1[h] + STATE.loads.Q_WE2[h] + STATE.loads.Q_WW[h];
+    totalQ[idx] += Q;
+    for (const k of wpKeys) stabQ[k][idx] += STATE.results[k].ts.Q_stab[h];
+  }
+
+  const labels = Array.from({length: bins}, (_, i) => (tMin + i) + '°C');
+  const datasets = wpKeys.map(k => ({
+    label: WP[k].name,
+    data: stabQ[k].map(v => Math.round(v)),
+    backgroundColor: COL[k],
+    borderRadius: 3,
+    barPercentage: 0.85,
+    categoryPercentage: 0.95,
   }));
 
-  if (!charts[canvasId]) {
-    charts[canvasId] = new Chart(document.getElementById(canvasId), {
-      type: 'line',
-      data: { labels: years.map(y => 'Jahr ' + y), datasets },
-      options: { ...chartDefaults,
-        plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, padding: 10, boxWidth: 18, boxHeight: 3 } } },
-        interaction: { mode: 'index', intersect: false },
-        scales: {
-          y: { beginAtZero: true, grid: gridStyle(), ticks: { ...tickFont(), callback: v => fmt0(v / 1000) + 'k €' } },
-          x: { grid: { display: false }, ticks: { ...tickFont(), maxTicksLimit: 10 } }
-        }
+  if (charts.bivT) charts.bivT.destroy();
+  charts.bivT = new Chart(document.getElementById('chart-biv-temp'), {
+    type: 'bar',
+    data: { labels, datasets },
+    options: { ...chartDefaults,
+      plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 14, boxHeight: 14, padding: 10 } }, tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => c.dataset.label + ': ' + fmt0(c.parsed.y) + ' kWh Heizstab' } } },
+      scales: {
+        y: { beginAtZero: true, grid: grid(), ticks: { ...tickF(), callback: v => fmt0(v) + ' kWh' } },
+        x: { grid: { display: false }, title: { display: true, text: 'Außentemperatur', font: { size: 11 } }, ticks: { ...tickF(), maxTicksLimit: bins } }
       }
-    });
-  } else {
-    charts[canvasId].data.datasets = datasets;
-    charts[canvasId].update('none');
-  }
-}
+    }
+  });
 
-function renderTcoMix(r) {
-  const horizon = 25;
-  const a_h = P.Anteil_Holz, a_b = P.Anteil_Backup;
-  const labels = ['Holz + Heizstab', 'Holz + Öl', 'Holz + LWWP', 'Holz + SWWP A29', 'Holz + SWWP B33'];
-  const keys = ['stab', 'oel', 'lwwp', 'a29', 'b33'];
-  document.getElementById('mix-anteil-display').textContent = `${Math.round(a_h * 100)}/${Math.round(a_b * 100)}`;
+  // COP-Histogramm in 0.25-Bins
+  const histBins = 28; // 0–7 in 0.25er Schritten
+  const histRange = 7;
+  const hist = {};
+  for (const k of wpKeys) hist[k] = new Array(histBins).fill(0);
 
-  const tco_mF = keys.map(k => r.netto_mF.holz + r.netto_mF[k] + horizon * r.Verb_Total * (a_h * r.waerme.holz + a_b * r.waerme[k]));
-  const tco_oF = keys.map(k => r.netto_oF.holz + r.netto_oF[k] + horizon * r.Verb_Total * (a_h * r.waerme.holz + a_b * r.waerme[k]));
-
-  if (!charts.tcoMix) {
-    charts.tcoMix = new Chart(document.getElementById('chart-tco-mix'), {
-      type: 'bar',
-      data: { labels, datasets: [
-        { label: 'Mit Förderung', data: [], backgroundColor: keys.map(k => COL[k]), borderRadius: 4, barPercentage: 0.7, categoryPercentage: 0.85 },
-        { label: 'Ohne Förderung', data: [], backgroundColor: keys.map(k => COL[k] + '60'), borderRadius: 4, barPercentage: 0.7, categoryPercentage: 0.85 },
-      ]},
-      options: { ...chartDefaults,
-        plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, padding: 10, boxWidth: 14, boxHeight: 14 } }, tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => c.dataset.label + ': ' + fmt0(c.parsed.y) + ' €' } } },
-        scales: {
-          y: { beginAtZero: true, grid: gridStyle(), ticks: { ...tickFont(), callback: v => fmt0(v / 1000) + 'k €' } },
-          x: { grid: { display: false }, ticks: tickFont() }
-        }
+  for (let h = 0; h < HOURS; h++) {
+    for (const k of wpKeys) {
+      if (STATE.results[k].ts.Q_wp[h] > 0.1) {
+        const cop = STATE.results[k].ts.cop[h];
+        const idx = Math.max(0, Math.min(histBins - 1, Math.floor(cop / histRange * histBins)));
+        hist[k][idx]++;
       }
-    });
+    }
   }
-  charts.tcoMix.data.datasets[0].data = tco_mF.map(Math.round);
-  charts.tcoMix.data.datasets[1].data = tco_oF.map(Math.round);
-  charts.tcoMix.update('none');
-}
 
-function renderAmortMix(r) {
-  const horizon = 25;
-  const a_h = P.Anteil_Holz, a_b = P.Anteil_Backup;
-  const years = Array.from({length: horizon + 1}, (_, i) => i);
-  const keys = ['oel', 'stab', 'lwwp', 'a29', 'b33'];
-  const labels = { oel: 'Holz + Öl', stab: 'Holz + Heizstab', lwwp: 'Holz + LWWP', a29: 'Holz + A29', b33: 'Holz + B33' };
-
-  const datasets = keys.map(k => ({
-    label: labels[k],
-    data: years.map(y => Math.round(r.netto_mF.holz + r.netto_mF[k] + y * r.Verb_Total * (a_h * r.waerme.holz + a_b * r.waerme[k]))),
-    borderColor: COL[k], backgroundColor: COL[k],
-    borderWidth: 2.2, pointRadius: 0, tension: 0,
+  const histLabels = Array.from({length: histBins}, (_, i) => fmt1(i * histRange / histBins));
+  const histDs = wpKeys.map(k => ({
+    label: WP[k].name,
+    data: hist[k],
+    borderColor: COL[k], backgroundColor: COL[k] + '50',
+    borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: true,
   }));
 
-  if (!charts.amortMix) {
-    charts.amortMix = new Chart(document.getElementById('chart-amort-mix-mF'), {
-      type: 'line',
-      data: { labels: years.map(y => 'Jahr ' + y), datasets },
-      options: { ...chartDefaults,
-        plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, padding: 10, boxWidth: 18, boxHeight: 3 } } },
-        interaction: { mode: 'index', intersect: false },
-        scales: {
-          y: { beginAtZero: true, grid: gridStyle(), ticks: { ...tickFont(), callback: v => fmt0(v / 1000) + 'k €' } },
-          x: { grid: { display: false }, ticks: { ...tickFont(), maxTicksLimit: 10 } }
-        }
+  if (charts.copHist) charts.copHist.destroy();
+  charts.copHist = new Chart(document.getElementById('chart-cop-hist'), {
+    type: 'line',
+    data: { labels: histLabels, datasets: histDs },
+    options: { ...chartDefaults,
+      plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 18, boxHeight: 3, padding: 10 } }, tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => c.dataset.label + ': ' + fmt0(c.parsed.y) + ' Stunden bei COP ~' + c.label } } },
+      scales: {
+        y: { beginAtZero: true, grid: grid(), ticks: { ...tickF(), callback: v => fmt0(v) + ' h' } },
+        x: { grid: { display: false }, title: { display: true, text: 'COP', font: { size: 11 } }, ticks: { ...tickF(), maxTicksLimit: 14 } }
       }
-    });
-  } else {
-    charts.amortMix.data.datasets = datasets;
-    charts.amortMix.update('none');
-  }
-}
-
-function renderSoloVsMix(r) {
-  const horizon = 25;
-  const a_h = P.Anteil_Holz, a_b = P.Anteil_Backup;
-  const labels = ['+ Öl', '+ Heizstab', '+ LWWP', '+ A29', '+ B33'];
-  const keys = ['oel', 'stab', 'lwwp', 'a29', 'b33'];
-  const tco_solo = keys.map(k => r.netto_mF[k] + horizon * r.opex_solo[k]);
-  const tco_mix = keys.map(k => r.netto_mF.holz + r.netto_mF[k] + horizon * r.Verb_Total * (a_h * r.waerme.holz + a_b * r.waerme[k]));
-
-  if (!charts.soloVsMix) {
-    charts.soloVsMix = new Chart(document.getElementById('chart-solo-vs-mix'), {
-      type: 'bar',
-      data: { labels, datasets: [
-        { label: 'Solo (X als 100%)', data: [], backgroundColor: keys.map(k => COL[k] + '60'), borderRadius: 4, barPercentage: 0.7, categoryPercentage: 0.85 },
-        { label: 'Mit Holz', data: [], backgroundColor: keys.map(k => COL[k]), borderRadius: 4, barPercentage: 0.7, categoryPercentage: 0.85 },
-      ]},
-      options: { ...chartDefaults,
-        plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, padding: 10, boxWidth: 14, boxHeight: 14 } }, tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => c.dataset.label + ': ' + fmt0(c.parsed.y) + ' €' } } },
-        scales: {
-          y: { beginAtZero: true, grid: gridStyle(), ticks: { ...tickFont(), callback: v => fmt0(v / 1000) + 'k €' } },
-          x: { grid: { display: false }, ticks: tickFont() }
-        }
-      }
-    });
-  }
-  charts.soloVsMix.data.datasets[0].data = tco_solo.map(Math.round);
-  charts.soloVsMix.data.datasets[1].data = tco_mix.map(Math.round);
-  charts.soloVsMix.data.datasets[1].label = 'Mit Holz (Misch ' + Math.round(a_h * 100) + '/' + Math.round(a_b * 100) + ')';
-  charts.soloVsMix.update('none');
+    }
+  });
 }
 
 // ============================================
-// RENDER · FORECAST
+// RERUN
 // ============================================
-function renderForecast(r) {
-  const horizon = 25;
-  const years = Array.from({length: horizon + 1}, (_, i) => i);
-  const oilPrices = years.map(y => P.P_Oel * Math.pow(1 + P.Inflation_Oel, y));
-  const stromPrices = years.map(y => P.P_Strom * Math.pow(1 + P.Inflation_Strom, y));
-  const holzPrices = years.map(y => P.P_Holz * Math.pow(1 + P.Inflation_Holz, y));
+let rerunTimer = null;
+function rerun() {
+  if (rerunTimer) clearTimeout(rerunTimer);
+  rerunTimer = setTimeout(() => {
+    runFullSim();
+    renderAll();
+  }, 100);
+}
 
-  if (!charts.forecast) {
-    charts.forecast = new Chart(document.getElementById('chart-price-forecast'), {
-      type: 'line',
-      data: { labels: years.map(y => 'Jahr ' + y), datasets: [
-        { label: 'Heizöl €/L', data: [], borderColor: COL.oel, backgroundColor: COL.oel, borderWidth: 2.2, pointRadius: 0, tension: 0.1, yAxisID: 'y1' },
-        { label: 'Strom €/kWh', data: [], borderColor: COL.b33, backgroundColor: COL.b33, borderWidth: 2.2, pointRadius: 0, tension: 0.1, yAxisID: 'y2' },
-        { label: 'Holz €/RM', data: [], borderColor: COL.holz, backgroundColor: COL.holz, borderWidth: 2.2, pointRadius: 0, tension: 0.1, yAxisID: 'y3' },
-      ]},
-      options: { ...chartDefaults,
-        plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, padding: 10, boxWidth: 18, boxHeight: 3 } } },
-        interaction: { mode: 'index', intersect: false },
-        scales: {
-          y1: { type: 'linear', position: 'left', grid: gridStyle(), ticks: { ...tickFont(), callback: v => fmt2(v) + ' €/L', color: COL.oel } },
-          y2: { type: 'linear', position: 'right', grid: { display: false }, ticks: { ...tickFont(), callback: v => fmt2(v) + ' €/kWh', color: COL.b33 } },
-          y3: { type: 'linear', display: false, beginAtZero: false },
-          x: { grid: { display: false }, ticks: { ...tickFont(), maxTicksLimit: 10 } }
-        }
-      }
-    });
-  }
-  charts.forecast.data.datasets[0].data = oilPrices.map(v => +v.toFixed(2));
-  charts.forecast.data.datasets[1].data = stromPrices.map(v => +v.toFixed(3));
-  charts.forecast.data.datasets[2].data = holzPrices.map(v => +v.toFixed(0));
-  charts.forecast.update('none');
+function renderAll() {
+  const safe = (name, fn) => { try { fn(); } catch (e) { console.error('[' + name + ']', e); } };
+  safe('overview', renderOverview);
+  safe('weather', renderWeather);
+  safe('results', renderResults);
+  safe('timeseries', renderTimeseries);
+  safe('puffer', renderPuffer);
+  safe('bivalent', renderBivalent);
+}
 
-  const labels_kwh = years.map(y => 'Jahr ' + y);
-  const ds_kwh = [
-    { label: 'Holz', color: COL.holz, data: years.map(y => holzPrices[y] / (P.HW_Holz * P.Eta_Holz / 100)) },
-    { label: 'Öl', color: COL.oel, data: years.map(y => oilPrices[y] / (P.HW_Oel * P.Eta_Oel / 100)) },
-    { label: 'Heizstab', color: COL.stab, data: years.map(y => stromPrices[y] / (P.Eta_Stab / 100)) },
-    { label: 'LWWP', color: COL.lwwp, data: years.map(y => stromPrices[y] / r.wpMetrics.lwwp.scop) },
-    { label: 'SWWP A29', color: COL.a29, data: years.map(y => stromPrices[y] / r.wpMetrics.a29.scop) },
-    { label: 'SWWP B33', color: COL.b33, data: years.map(y => stromPrices[y] / r.wpMetrics.b33.scop) },
-  ];
-  if (!charts.forecastKwh) {
-    charts.forecastKwh = new Chart(document.getElementById('chart-cost-kwh-forecast'), {
-      type: 'line',
-      data: { labels: labels_kwh, datasets: ds_kwh.map(d => ({ label: d.label, data: d.data.map(v => +v.toFixed(4)), borderColor: d.color, backgroundColor: d.color, borderWidth: 2, pointRadius: 0, tension: 0.05 })) },
-      options: { ...chartDefaults,
-        plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, padding: 10, boxWidth: 18, boxHeight: 3 } } },
-        interaction: { mode: 'index', intersect: false },
-        scales: {
-          y: { beginAtZero: true, grid: gridStyle(), ticks: { ...tickFont(), callback: v => fmt2(v) + ' €' } },
-          x: { grid: { display: false }, ticks: { ...tickFont(), maxTicksLimit: 10 } }
-        }
-      }
-    });
-  } else {
-    charts.forecastKwh.data.datasets.forEach((ds, i) => { ds.data = ds_kwh[i].data.map(v => +v.toFixed(4)); });
-    charts.forecastKwh.update('none');
-  }
+// ============================================
+// TAB SWITCHING
+// ============================================
+document.getElementById('tabs').addEventListener('click', e => {
+  if (!e.target.classList.contains('tab')) return;
+  const tab = e.target.dataset.tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + tab));
+  setTimeout(() => Object.values(charts).forEach(c => c && c.resize && c.resize()), 50);
+});
 
-  // Kumulierte TCO mit Inflation
-  const horizon2 = 25;
-  const years2 = Array.from({length: horizon2 + 1}, (_, i) => i);
-  const keys = ['holz', 'oel', 'stab', 'lwwp', 'a29', 'b33'];
-  const labels_tco = { holz: 'Holzvergaser', oel: 'Ölkessel', stab: 'Heizstab', lwwp: 'LWWP', a29: 'SWWP A29', b33: 'SWWP B33' };
+document.getElementById('ts-system').addEventListener('change', renderTimeseries);
+document.getElementById('ts-window').addEventListener('change', renderTimeseries);
+document.getElementById('puf-system').addEventListener('change', renderPuffer);
 
-  const dsTco = keys.map(k => {
-    let cum = r.netto_mF[k
+// ============================================
+// INIT
+// ============================================
+setupInputs();
+runFullSim();
+renderAll();
+
+</script>
+</body>
+</html>
