@@ -289,6 +289,11 @@ Bilanz
       <div class="chart-frame tall"><canvas id="chart-ts-power"></canvas></div>
     </div>
     <div class="card" style="margin-top: 16px;">
+      <h2>Temperaturhub (VL − Quelle)</h2>
+      <div class="meta">Differenz zwischen Vorlauftemperatur und Quelltemperatur (Sole bzw. Luft). Je höher der Hub, desto schlechter der COP.</div>
+      <div class="chart-frame"><canvas id="chart-ts-hub"></canvas></div>
+    </div>
+    <div class="card" style="margin-top: 16px;">
       <h2>Stündlicher COP</h2>
       <div class="meta">COP am jeweiligen Betriebspunkt — schwankt mit T_aus und VL_soll. Nur für WP-Systeme aussagekräftig.</div>
       <div class="chart-frame"><canvas id="chart-ts-cop"></canvas></div>
@@ -363,17 +368,6 @@ Bilanz
         <input type="number" id="mb-anteil" value="80" step="5" min="0" max="100">%
         <span class="label-tag">Rest = Backup-System</span>
       </label>
-      <label>Backup-System:
-        <select id="mb-system">
-          <option value="b33">SWWP B33</option>
-          <option value="a29">SWWP A29</option>
-          <option value="lwwp">LWWP</option>
-          <option value="oel">Ölkessel</option>
-        </select>
-      </label>
-      <label>Random-Seed:
-        <input type="number" id="mb-seed" value="42" step="1">
-      </label>
     </div>
 
     <div class="card">
@@ -389,8 +383,8 @@ Bilanz
     </div>
 
     <div class="card" style="margin-top: 16px;">
-      <h2>20-Jahre-Gesamtkosten Backup · zusätzliche Anschaffung + Mehrkosten</h2>
-      <div class="meta">Bei <span id="mb-anteil-display">80</span>% Holz-Anteil und ohne Förderung. Anschaffungskosten zusätzlich zum Holzvergaser plus 20 Jahre kumulierte Komfort-Mehrkosten. Hinweis: Wärmepumpen sind über BAFA/BEG bis max. 15.000 € förderfähig — die Werte hier zeigen den Worst-Case ohne Förderung.</div>
+      <h2>20-Jahre-Gesamtkosten Backup · Anschaffung + Mehrkosten + Wartung</h2>
+      <div class="meta">Bei <span id="mb-anteil-display">80</span>% Holz-Anteil und ohne Förderung. Anschaffungskosten zusätzlich zum Holzvergaser plus 20 Jahre kumulierte Komfort-Mehrkosten plus 20 Jahre Wartungskosten. Hinweis: Wärmepumpen sind über BAFA/BEG bis max. 15.000 € förderfähig — die Werte hier zeigen den Worst-Case ohne Förderung.</div>
       <div class="chart-frame tall"><canvas id="chart-mb-tco20"></canvas></div>
     </div>
 
@@ -435,9 +429,11 @@ const P = {
   V_Puffer: 4000, T_Umg: 16, k_Verlust: 0.000002, // pro L und K, kWh/(K·h·L) — ~1,5 kWh/d je 1000L bei 30K ΔT
   // Strompreis etc
   P_Strom: 0.32, P_Oel: 1.10, HW_Oel: 10, eta_Oel: 0.97,
-  P_Holz: 100, HW_Holz: 1700, eta_Holz: 0.90,
+  P_Holz: 90, HW_Holz: 1600, eta_Holz: 0.92,
   // Heizstab
   Stab_kW: 36, eta_Stab: 1.0,
+  // Wartungskosten €/Jahr je System
+  W_b33: 250, W_a29: 250, W_lwwp: 300, W_oel: 350, W_holz: 350,
 };
 
 const COL = {
@@ -449,9 +445,9 @@ const COL = {
 
 // Wärmepumpen — Carnot-Gütegrad und VL-Limit
 const WP = {
-  lwwp: { eta: 0.35, vlMax: 70, name: 'LWWP', quelle: 'luft', col: COL.lwwp, kW_max: 34 },
-  a29:  { eta: 0.47, vlMax: 60, name: 'A29',  quelle: 'sole', col: COL.a29, kW_max: 29 },
-  b33:  { eta: 0.50, vlMax: 73, name: 'B33',  quelle: 'sole', col: COL.b33, kW_max: 33 },
+  lwwp: { eta: 0.36, vlMax: 70, name: 'LWWP', quelle: 'luft', col: COL.lwwp, kW_max: 34 },
+  a29:  { eta: 0.42, vlMax: 60, name: 'A29',  quelle: 'sole', col: COL.a29, kW_max: 29 },
+  b33:  { eta: 0.45, vlMax: 73, name: 'B33',  quelle: 'sole', col: COL.b33, kW_max: 33 },
 };
 
 // Konstanten
@@ -537,9 +533,17 @@ function WW_profile(h) {
   return P.WW_kWh_d * profile[hour] / 24;
 }
 
-// Sole-Quelltemperatur als Funktion von T_aus — stark gedämpft
-function T_sole(T_aus_running_avg) {
-  return Math.max(-3, Math.min(10, 2 + 0.18 * T_aus_running_avg));
+// Sole-Quelltemperatur — Kusuda-Achenbach Modell für 1,5m Tiefe
+// T(z,t) = T_avg - A * e^(-z * sqrt(pi/(alpha*tau))) * cos(2*pi*(t - phi)/tau)
+// alpha = 0.5e-6 m²/s (typischer Boden), z = 1.5m, tau = 365 Tage
+// Dämpfungsfaktor bei 1.5m: e^(-0.67) ≈ 0.51
+// Phasenverschiebung: ~39 Tage
+const SOLE_DAMP = 0.33;       // Amplitudendämpfung bei 1,5m (feuchter Lehm, α≈0.3e-6)
+const SOLE_PHASE_D = 39;      // Phasenverschiebung in Tagen
+function T_sole_kusuda(hour) {
+  const day = hour / 24;
+  const yearPhase = 2 * Math.PI * (day - P.T_phase - SOLE_PHASE_D) / 365;
+  return P.T_mittel - P.T_amp * SOLE_DAMP * Math.cos(yearPhase);
 }
 
 // Carnot-COP
@@ -547,7 +551,7 @@ function copCarnot(T_VL, T_Quelle, eta) {
   const dT = T_VL - T_Quelle;
   if (dT <= 1) return 8.0;
   const cop = eta * (T_VL + 273.15) / dT;
-  return Math.max(1.0, Math.min(8.0, cop));
+  return Math.max(1.0, Math.min(6.0, cop));
 }
 
 // WP-Maximalleistung — vereinfacht, kein Datenblatt-Kennfeld
@@ -602,7 +606,7 @@ function buildLoads(T_aus) {
     const vl1 = ta < P.T_HG_WE1 ? VL_kurve(ta, P.T_HG_WE1, P.T_Norm, tsoll1, P.VL_aus_WE1) : 0;
     const vl2 = ta < P.T_HG_WE2 ? VL_kurve(ta, P.T_HG_WE2, P.T_Norm, tsoll2, P.VL_aus_WE2) : 0;
     // WW-Anforderung entfernt — nur Heizkurve
-    VL_soll[h] = Math.max(vl1, vl2, P.T_soll_tag_WE1); // Mindestens Raum-T wenn keine Heizung läuft
+    VL_soll[h] = Math.max(vl1, vl2); // 0 wenn kein Heizbedarf
   }
   return { Q_WE1, Q_WE2, Q_WW, VL_soll };
 }
@@ -611,8 +615,6 @@ function buildLoads(T_aus) {
 // SIMULATION für ein System
 // ============================================
 function simulate(sysKey, T_aus, loads) {
-  const T_aus_avg7d = rollingMean(T_aus, 24 * 7);
-
   // Puffer: 3 Schichten je V/3 Liter
   const V_layer = P.V_Puffer / 3;
   const C_layer = V_layer * C_WATER; // kWh/K
@@ -734,9 +736,13 @@ function simulate(sysKey, T_aus, loads) {
       } else {
         // Wärmepumpe (lwwp/a29/b33)
         const wp = WP[sysKey];
-        const T_q = wp.quelle === 'sole' ? T_sole(T_aus_avg7d[h]) : T_a;
+        const T_q = wp.quelle === 'sole' ? T_sole_kusuda(h) : T_a;
         const VL_real = Math.min(VL, wp.vlMax); // WP läuft auf Limit
-        const cop = copCarnot(VL_real, T_q, wp.eta);
+        let cop = copCarnot(VL_real, T_q, wp.eta);
+        // Abtauverluste LWWP: bei 0–7°C und hoher Feuchte vereist der Verdampfer
+        if (wp.quelle === 'luft' && T_a >= -2 && T_a <= 7) {
+          cop *= 0.93; // ~7% COP-Einbuße durch Abtauzyklen
+        }
         const kW_wp_max = WP_kWmax(sysKey, T_a, VL_real);
         const Q_wp = Math.min(kW_wp_max, headroom);
         Q_wp_h = Q_wp;
@@ -954,12 +960,13 @@ function renderOverview() {
   const names = { b33: 'SWWP B33 · 350-G', a29: 'SWWP A29 · 300-G', lwwp: 'LWWP Vaillant', holz: 'Holzvergaser S3', oel: 'Ölkessel Vitoladens' };
   for (const k of order) {
     const r = STATE.results[k].kpi;
-    const cost = r.E_strom * P.P_Strom + r.E_oel * P.P_Oel + (r.E_holz / P.HW_Holz) * P.P_Holz;
+    const wartung = P['W_' + k] || 0;
+    const cost = r.E_strom * P.P_Strom + r.E_oel * P.P_Oel + (r.E_holz / P.HW_Holz) * P.P_Holz + wartung;
     const status = k === 'oel' || k === 'holz'
       ? '<span class="pill ok">Brenner</span>'
-      : r.bivalent_pct < 0.02 ? '<span class="pill ok">Sauber WP</span>'
-      : r.bivalent_pct < 0.10 ? `<span class="pill warn">Bivalent ${pct(r.bivalent_pct)}</span>`
-      : `<span class="pill bad">Bivalent ${pct(r.bivalent_pct)}</span>`;
+      : r.bivalent_pct < 0.001 ? '<span class="pill ok">Monovalent</span>'
+      : r.bivalent_pct < 0.05 ? `<span class="pill warn">Heizstab ${pct(r.bivalent_pct)}</span>`
+      : `<span class="pill bad">Heizstab ${pct(r.bivalent_pct)}</span>`;
     const scopRow = (k === 'oel' || k === 'holz') ? '' : `<div class="key">SCOP</div><div class="val">${fmt2(r.scop)}</div>`;
     const eRow = k === 'oel' ? `<div class="key">Heizöl</div><div class="val">${fmt0(r.E_oel)} L</div>`
       : k === 'holz' ? `<div class="key">Holz</div><div class="val">${fmt1(r.E_holz / P.HW_Holz)} RM</div>`
@@ -977,6 +984,7 @@ function renderOverview() {
           <div class="key">Q_gen / (Last+Verl)</div><div class="val" style="color: ${ratioColor};">${fmt2(r.gen_load_ratio)}</div>
           ${scopRow}
           ${eRow}
+          <div class="key">Wartung</div><div class="val">${fmt0(wartung)} €/a</div>
           <div class="key">Jahreskosten</div><div class="val">${fmt0(cost)} €</div>
           <div class="key">VL-Deckung</div><div class="val">${pct(r.coverage)}</div>
         </div>
@@ -1003,6 +1011,12 @@ function renderWeather() {
     tMin[d] = mn; tMax[d] = mx;
   }
 
+  // Bodentemperatur (Sole) als Tagesmittel — Kusuda analytisch
+  const tSoilDay = new Float32Array(365);
+  for (let d = 0; d < 365; d++) {
+    tSoilDay[d] = T_sole_kusuda(d * 24 + 12);
+  }
+
   if (charts.tout) charts.tout.destroy();
   charts.tout = new Chart(document.getElementById('chart-tout'), {
     type: 'line',
@@ -1010,6 +1024,7 @@ function renderWeather() {
       { label: 'T max', data: Array.from(tMax).map(v => +v.toFixed(1)), borderColor: 'rgba(184,58,26,0.4)', borderWidth: 1, pointRadius: 0, fill: '+1', backgroundColor: 'rgba(184,58,26,0.08)' },
       { label: 'T min', data: Array.from(tMin).map(v => +v.toFixed(1)), borderColor: 'rgba(91,168,224,0.5)', borderWidth: 1, pointRadius: 0 },
       { label: 'T mittel', data: Array.from(tDay).map(v => +v.toFixed(1)), borderColor: COL.tout, borderWidth: 1.8, pointRadius: 0, tension: 0.2 },
+      { label: 'T Sole (Boden)', data: Array.from(tSoilDay).map(v => +v.toFixed(1)), borderColor: COL.b33, borderWidth: 1.8, borderDash: [6, 4], pointRadius: 0, tension: 0.3 },
     ]},
     options: { ...chartDefaults,
       plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 18, boxHeight: 3, padding: 10 } } },
@@ -1265,8 +1280,6 @@ function getWindow(name) {
 function renderMischbetrieb() {
   // Defaults absichern falls State noch nicht initialisiert
   if (typeof P.MB_Anteil_Holz !== 'number' || isNaN(P.MB_Anteil_Holz)) P.MB_Anteil_Holz = 80;
-  if (!P.MB_System) P.MB_System = 'b33';
-  if (typeof P.MB_Seed !== 'number' || isNaN(P.MB_Seed)) P.MB_Seed = 42;
 
   const elExtra = document.getElementById('chart-mb-extra');
   const elCum = document.getElementById('chart-mb-cum');
@@ -1289,56 +1302,53 @@ function renderMischbetrieb() {
   }
 
   const anteilHolz = P.MB_Anteil_Holz / 100;
-  const sysKey = P.MB_System;
+  const MB_SEEDS = [42, 137, 271, 419, 563];
+  const N_SEEDS = MB_SEEDS.length;
 
-  const rng = mulberry32(P.MB_Seed);
-  const useHolz = new Uint8Array(HOURS);
-  for (let i = 0; i < HOURS; i++) {
-    useHolz[i] = rng() < anteilHolz ? 1 : 0;
-  }
+  // Erzeuge useHolz-Arrays für alle Seeds
+  const useHolzAll = MB_SEEDS.map(seed => {
+    const rng = mulberry32(seed);
+    const arr = new Uint8Array(HOURS);
+    for (let i = 0; i < HOURS; i++) arr[i] = rng() < anteilHolz ? 1 : 0;
+    return arr;
+  });
 
   const rH = STATE.results.holz;
-  const rB = STATE.results[sysKey];
-  if (!rH || !rB || !rH.ts.cost || !rB.ts.cost) return;
+  if (!rH || !rH.ts.cost) return;
 
   const cost_solo_h = rH.ts.cost;
-  const cost_solo_b = rB.ts.cost;
-  const cost_mix = new Float32Array(HOURS);
-  for (let i = 0; i < HOURS; i++) {
-    cost_mix[i] = useHolz[i] ? cost_solo_h[i] : cost_solo_b[i];
-  }
 
-  // Tagesweise aufintegrieren
+  // Tagesweise aufintegrieren — für Holz
   const days = Array.from({length: 365}, (_, i) => i);
   const cum_solo_h = new Array(365);
-  const cum_mix = new Array(365);
-  let accH = 0, accM = 0;
+  let accH = 0;
   for (let d = 0; d < 365; d++) {
-    let dayH = 0, dayM = 0;
+    let dayH = 0;
     for (let h = 0; h < 24; h++) {
       const i = d * 24 + h;
       if (i >= HOURS) break;
       dayH += cost_solo_h[i];
-      dayM += cost_mix[i];
     }
     accH += dayH;
-    accM += dayM;
     cum_solo_h[d] = Math.round(accH);
-    cum_mix[d] = Math.round(accM);
   }
 
-  // Plot 1: Mehrkosten je Backup-System (alle 4 nebeneinander, aktueller Anteil)
+  // Plot 1: Mehrkosten je Backup-System — Mittelwert über 5 Seeds
   const backupKeys = ['b33', 'a29', 'lwwp', 'oel'];
   const backupNames = { b33: 'SWWP B33', a29: 'SWWP A29', lwwp: 'LWWP', oel: 'Ölkessel' };
   const totalSoloHolz = accH;
   const extraCost = backupKeys.map(k => {
     const rb = STATE.results[k];
     if (!rb || !rb.ts || !rb.ts.cost) return 0;
-    let totalMix = 0;
-    for (let i = 0; i < HOURS; i++) {
-      totalMix += useHolz[i] ? cost_solo_h[i] : rb.ts.cost[i];
+    let sum = 0;
+    for (const useHolz of useHolzAll) {
+      let totalMix = 0;
+      for (let i = 0; i < HOURS; i++) {
+        totalMix += useHolz[i] ? cost_solo_h[i] : rb.ts.cost[i];
+      }
+      sum += totalMix - totalSoloHolz;
     }
-    return totalMix - totalSoloHolz;
+    return sum / N_SEEDS;
   });
 
   if (charts.mbExtra) charts.mbExtra.destroy();
@@ -1363,14 +1373,34 @@ function renderMischbetrieb() {
     }
   });
 
-  // Plot 2: Kumulative Kosten Solo Holz vs Mischbetrieb (für gewähltes Backup-System)
+  // Plot 2: Kumulative Kosten Solo Holz vs Mischbetrieb (alle Backup-Systeme)
+  const cumDs = [
+    { label: '100% Holz (Referenz)', data: cum_solo_h, borderColor: COL.holz, backgroundColor: COL.holz + '20', borderWidth: 2, pointRadius: 0, tension: 0.2, fill: 'origin' },
+  ];
+  for (const k of backupKeys) {
+    const rb = STATE.results[k];
+    if (!rb || !rb.ts.cost) continue;
+    const cumMix = new Array(365).fill(0);
+    for (const useHolz of useHolzAll) {
+      let acc = 0;
+      for (let d = 0; d < 365; d++) {
+        let dayM = 0;
+        for (let h = 0; h < 24; h++) {
+          const i = d * 24 + h;
+          if (i >= HOURS) break;
+          dayM += useHolz[i] ? cost_solo_h[i] : rb.ts.cost[i];
+        }
+        acc += dayM;
+        cumMix[d] += acc;
+      }
+    }
+    for (let d = 0; d < 365; d++) cumMix[d] = Math.round(cumMix[d] / N_SEEDS);
+    cumDs.push({ label: `${P.MB_Anteil_Holz}% Holz / ${100 - P.MB_Anteil_Holz}% ${backupNames[k]}`, data: cumMix, borderColor: COL[k], borderWidth: 1.8, pointRadius: 0, tension: 0.2 });
+  }
   if (charts.mbCum) charts.mbCum.destroy();
   charts.mbCum = new Chart(document.getElementById('chart-mb-cum'), {
     type: 'line',
-    data: { labels: days, datasets: [
-      { label: '100% Holz (Referenz)', data: cum_solo_h, borderColor: COL.holz, backgroundColor: COL.holz + '20', borderWidth: 2, pointRadius: 0, tension: 0.2, fill: 'origin' },
-      { label: `Mischbetrieb (${P.MB_Anteil_Holz}% Holz / ${100 - P.MB_Anteil_Holz}% ${backupNames[sysKey]})`, data: cum_mix, borderColor: COL[sysKey], backgroundColor: COL[sysKey] + '20', borderWidth: 2, pointRadius: 0, tension: 0.2, fill: '-1' },
-    ]},
+    data: { labels: days, datasets: cumDs },
     options: { ...chartDefaults,
       plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 18, boxHeight: 3, padding: 10 } }, tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => c.dataset.label + ': ' + fmt0(c.parsed.y) + ' €' } } },
       interaction: { mode: 'index', intersect: false },
@@ -1383,9 +1413,9 @@ function renderMischbetrieb() {
 
   // Plot 3: 20-Jahre-TCO Backup ohne Förderung (Anschaffung + 20 · Mehrkosten)
   // CAPEX-Werte aus v3-App, brutto ohne Förderung
-  const capexBackup = { b33: 38600, a29: 31900, lwwp: 37300, oel: 21500 };
+  const capexBackup = { b33: 40000, a29: 30500, lwwp: 35000, oel: 16000 };
+  const wartungBackup = { b33: P.W_b33, a29: P.W_a29, lwwp: P.W_lwwp, oel: P.W_oel };
   const horizon = 20;
-  const tco20Data = backupKeys.map(k => capexBackup[k] + horizon * extraCost[backupKeys.indexOf(k)]);
 
   document.getElementById('mb-anteil-display').textContent = P.MB_Anteil_Holz;
 
@@ -1397,6 +1427,7 @@ function renderMischbetrieb() {
       datasets: [
         { label: 'Anschaffung', data: backupKeys.map(k => capexBackup[k]), backgroundColor: backupKeys.map(k => COL[k] + 'AA'), borderRadius: 4, stack: 'tco' },
         { label: '20 J Mehrkosten', data: backupKeys.map((k, i) => Math.round(horizon * extraCost[i])), backgroundColor: backupKeys.map(k => COL[k]), borderRadius: 4, stack: 'tco' },
+        { label: '20 J Wartung', data: backupKeys.map(k => Math.round(horizon * wartungBackup[k])), backgroundColor: backupKeys.map(k => COL[k] + '55'), borderRadius: 4, stack: 'tco' },
       ]
     },
     options: { ...chartDefaults,
@@ -1415,7 +1446,7 @@ function renderMischbetrieb() {
   const tcoTimeDs = [
     ...backupKeys.map((k, ki) => ({
       label: backupNames[k],
-      data: years.map(y => capexBackup[k] + y * extraCost[ki]),
+      data: years.map(y => capexBackup[k] + y * (extraCost[ki] + wartungBackup[k])),
       borderColor: COL[k],
       backgroundColor: COL[k],
       borderWidth: 2,
@@ -1424,7 +1455,7 @@ function renderMischbetrieb() {
     })),
     ...wpKeys.map(k => ({
       label: backupNames[k] + ' (mit Förderung)',
-      data: years.map(y => capexBackup[k] - foerderung + y * extraCost[backupKeys.indexOf(k)]),
+      data: years.map(y => capexBackup[k] - foerderung + y * (extraCost[backupKeys.indexOf(k)] + wartungBackup[k])),
       borderColor: COL[k],
       backgroundColor: COL[k],
       borderWidth: 2,
@@ -1454,15 +1485,18 @@ function renderMischbetrieb() {
     const rb = STATE.results[k];
     if (!rb || !rb.ts || !rb.ts.cost) return null;
     const data = sweepAnteile.map(pct => {
-      // Eigene Allokation pro Anteil mit eigenem Seed-Offset für Reproduzierbarkeit
-      const rng2 = mulberry32(P.MB_Seed);
-      let totalMix = 0;
       const a = pct / 100;
-      for (let i = 0; i < HOURS; i++) {
-        const useH = rng2() < a;
-        totalMix += useH ? cost_solo_h[i] : rb.ts.cost[i];
+      let sum = 0;
+      for (const seed of MB_SEEDS) {
+        const rng2 = mulberry32(seed);
+        let totalMix = 0;
+        for (let i = 0; i < HOURS; i++) {
+          const useH = rng2() < a;
+          totalMix += useH ? cost_solo_h[i] : rb.ts.cost[i];
+        }
+        sum += totalMix - totalSoloHolz;
       }
-      return Math.round(totalMix - totalSoloHolz);
+      return Math.round(sum / N_SEEDS);
     });
     return {
       label: backupNames[k],
@@ -1515,18 +1549,20 @@ function renderTimeseries() {
   const useDaily = len > 24 * 14;
 
   const labels = [];
-  let Tout, VL, Ttop, Tmid, Tbot, Qload, Qwp, Qstab, cop;
+  let Tout, VL, Ttop, Tmid, Tbot, Qload, Qwp, Qstab, cop, hub;
 
+  // Quelltemperatur für Hub-Berechnung
+  const wpDef = WP[sysKey];
   if (useDaily) {
     // Tagesmittel
     const startDay = Math.floor(start / 24);
     const numDays = Math.ceil(len / 24);
     Tout = []; VL = []; Ttop = []; Tmid = []; Tbot = [];
-    Qload = []; Qwp = []; Qstab = []; cop = [];
+    Qload = []; Qwp = []; Qstab = []; cop = []; hub = [];
 
     for (let d = 0; d < numDays; d++) {
       let sT = 0, sV = 0, sTt = 0, sTm = 0, sTb = 0;
-      let sQl = 0, sQw = 0, sQs = 0, sC = 0, cN = 0;
+      let sQl = 0, sQw = 0, sQs = 0, sC = 0, cN = 0, sH = 0;
       const dayStart = (startDay + d) * 24;
       for (let h = 0; h < 24; h++) {
         const i = dayStart + h;
@@ -1540,6 +1576,10 @@ function renderTimeseries() {
         sQw += r.ts.Q_wp[i];
         sQs += r.ts.Q_stab[i];
         if (r.ts.Q_wp[i] > 0.1) { sC += r.ts.cop[i]; cN++; }
+        if (wpDef) {
+          const tq = wpDef.quelle === 'sole' ? T_sole_kusuda(i) : STATE.T_aus[i];
+          sH += STATE.loads.VL_soll[i] - tq;
+        }
       }
       Tout.push(sT / 24);
       VL.push(sV / 24);
@@ -1551,12 +1591,13 @@ function renderTimeseries() {
       Qwp.push(sQw / 24);
       Qstab.push(sQs / 24);
       cop.push(cN > 0 ? sC / cN : null);
+      hub.push(wpDef ? sH / 24 : null);
       labels.push(startDay + d);
     }
   } else {
     // Stundenwerte direkt für kurze Zeitfenster
     Tout = []; VL = []; Ttop = []; Tmid = []; Tbot = [];
-    Qload = []; Qwp = []; Qstab = []; cop = [];
+    Qload = []; Qwp = []; Qstab = []; cop = []; hub = [];
     for (let i = start; i < start + len && i < HOURS; i++) {
       Tout.push(STATE.T_aus[i]);
       VL.push(STATE.loads.VL_soll[i]);
@@ -1567,6 +1608,12 @@ function renderTimeseries() {
       Qwp.push(r.ts.Q_wp[i]);
       Qstab.push(r.ts.Q_stab[i]);
       cop.push(r.ts.cop[i]);
+      if (wpDef) {
+        const tq = wpDef.quelle === 'sole' ? T_sole_kusuda(i) : STATE.T_aus[i];
+        hub.push(STATE.loads.VL_soll[i] - tq);
+      } else {
+        hub.push(null);
+      }
       const d = Math.floor(i / 24), h = i % 24;
       labels.push(`d${d} ${h}h`);
     }
@@ -1607,6 +1654,23 @@ function renderTimeseries() {
       interaction: { mode: 'index', intersect: false },
       scales: {
         y: { beginAtZero: true, grid: grid(), ticks: { ...tickF(), callback: v => v + ' kW' } },
+        x: { grid: { display: false }, ticks: { ...tickF(), maxTicksLimit: useDaily ? 12 : 10 } }
+      }
+    }
+  });
+
+  // Temperaturhub
+  if (charts.tsHub) charts.tsHub.destroy();
+  charts.tsHub = new Chart(document.getElementById('chart-ts-hub'), {
+    type: 'line',
+    data: { labels, datasets: [
+      { label: useDaily ? 'Hub (Tages-Ø)' : 'Hub (VL − Quelle)', data: hub.map(v => v === null ? null : +v.toFixed(1)), borderColor: COL[sysKey] || COL.tout, backgroundColor: (COL[sysKey] || COL.tout) + '20', borderWidth: 1.8, pointRadius: 0, tension: 0.3, fill: 'origin', spanGaps: false },
+    ]},
+    options: { ...chartDefaults,
+      plugins: { ...chartDefaults.plugins, legend: { display: false } },
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        y: { beginAtZero: true, grid: grid(), ticks: { ...tickF(), callback: v => v + ' K' }, title: { display: true, text: 'Temperaturhub', font: { size: 11 } } },
         x: { grid: { display: false }, ticks: { ...tickF(), maxTicksLimit: useDaily ? 12 : 10 } }
       }
     }
@@ -1917,8 +1981,6 @@ document.getElementById('puf-system').addEventListener('change', renderPuffer);
 
 // Mischbetrieb-Inputs
 document.getElementById('mb-anteil').addEventListener('input', e => { P.MB_Anteil_Holz = parseFloat(e.target.value) || 0; renderMischbetrieb(); });
-document.getElementById('mb-system').addEventListener('change', e => { P.MB_System = e.target.value; renderMischbetrieb(); });
-document.getElementById('mb-seed').addEventListener('input', e => { P.MB_Seed = parseInt(e.target.value) || 42; renderMischbetrieb(); });
 
 // ============================================
 // INIT
