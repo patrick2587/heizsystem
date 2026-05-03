@@ -133,7 +133,57 @@
 
   <!-- TAB: ÜBERSICHT -->
   <section class="panel active" id="panel-overview">
-    <div class="grid grid-2">
+    <div class="card">
+      <h2>Szenario-Konfiguration</h2>
+      <div class="meta" style="display: flex; justify-content: space-between; align-items: center;">
+        <span>Aktive Optionen aus dem Parameter-Tab. Änderungen dort lösen Neusimulation aus.</span>
+        <button id="btn-reset" style="padding: 4px 12px; font-size: 11px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-soft); cursor: pointer; font-family: inherit; color: var(--text-soft); white-space: nowrap;">Reset</button>
+      </div>
+      <div id="scenario-pills" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+      <div class="grid grid-2" style="margin-top: 14px;" id="scenario-podium">
+        <div id="scenario-winner" style="padding: 12px 16px; background: var(--bg-soft); border-radius: var(--radius-sm); display: none; position: relative; border: 1.5px solid #D4A017;">
+          <span style="position: absolute; top: 12px; right: 16px; font-size: 22px; opacity: 0.4; filter: saturate(2) brightness(1.1);">🏆</span>
+          <div style="font-size: 11px; color: var(--text-mute); margin-bottom: 4px;">1. Platz · Günstigstes Backup über 20 Jahre</div>
+          <div id="scenario-winner-text" style="font-size: 18px; font-weight: 500;"></div>
+          <div id="scenario-winner-detail" style="font-size: 12px; color: var(--text-soft); margin-top: 2px;"></div>
+        </div>
+        <div id="scenario-second" style="padding: 12px 16px; background: var(--bg-soft); border-radius: var(--radius-sm); display: none; position: relative; border: 1.5px solid #B0B0B0;">
+          <span style="position: absolute; top: 12px; right: 16px; font-size: 22px; opacity: 0.25; filter: saturate(0.5) brightness(1.3);">🥈</span>
+          <div style="font-size: 11px; color: var(--text-mute); margin-bottom: 4px;">2. Platz</div>
+          <div id="scenario-second-text" style="font-size: 18px; font-weight: 500;"></div>
+          <div id="scenario-second-detail" style="font-size: 12px; color: var(--text-soft); margin-top: 2px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 16px;">
+      <h2>Energiebilanz-Übersicht</h2>
+      <div class="meta">Jahressummen für das aktuell gewählte Wetterszenario, alle 5 Erzeuger-Optionen verglichen.</div>
+      <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;">
+        <div style="background: var(--bg-soft); border-radius: var(--radius-sm); padding: 10px 14px;">
+          <div class="meta" id="kpi-q-total-label">Wärmebedarf gesamt</div>
+          <div style="font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums;" id="kpi-q-total">–</div>
+        </div>
+        <div style="background: var(--bg-soft); border-radius: var(--radius-sm); padding: 10px 14px;">
+          <div class="meta">WE1 Altbau · UA <span id="kpi-ua1">–</span></div>
+          <div style="font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums;" id="kpi-q-we1">–</div>
+        </div>
+        <div style="background: var(--bg-soft); border-radius: var(--radius-sm); padding: 10px 14px;">
+          <div class="meta">WE2 Neubau · UA <span id="kpi-ua2">–</span></div>
+          <div style="font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums;" id="kpi-q-we2">–</div>
+        </div>
+        <div style="background: var(--bg-soft); border-radius: var(--radius-sm); padding: 10px 14px;">
+          <div class="meta" id="kpi-q-ww-label">Warmwasser</div>
+          <div style="font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums;" id="kpi-q-ww">–</div>
+        </div>
+        <div style="background: var(--bg-soft); border-radius: var(--radius-sm); padding: 10px 14px;">
+          <div class="meta">Pufferverluste</div>
+          <div style="font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums;" id="kpi-q-loss">–</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-2" style="margin-top: 16px;">
       <div class="card">
         <h2>Simulationsstruktur</h2>
         <div class="meta">Stündliche Energiebilanz, t = 0 ... 8759. Alle Größen sind diskrete Zeitreihen X(t).</div>
@@ -167,7 +217,8 @@ Bilanz
         <div class="desc">
           <p>Die Simulation läuft <strong>stündlich über ein synthetisches Jahr</strong> (8760 Schritte) für Mitteldeutschland. Sie simuliert Außentemperatur, Heizlast für beide Wohneinheiten getrennt, Vorlauftemperatur über die Heizkurve, Pufferdynamik mit drei Schichten und den Erzeuger-Betrieb.</p>
           <p>Im Gegensatz zu einer einfachen SCOP-Schätzung berechnet sie für <strong>jede einzelne Stunde</strong> den COP am aktuellen Betriebspunkt, prüft VL-Limits und schaltet bei Bedarf den Heizstab zu. Daraus ergibt sich der <strong>echte Jahres-SCOP</strong> als Σ Q_WP / Σ E_WP statt einer Datenblatt-Annahme.</p>
-          <p><strong>Was modelliert ist:</strong> Klimaprofil mit Tag/Nacht und Kältewellen, getrennte WE1/WE2 mit eigenen UA und Heizkurven (gemeinsame VL-Anforderung), Warmwasserlast mit realistischem Tagesprofil, 3-Schicht-Puffer mit Verlusten, WP-Carnot-Modell mit Gütegrad und VL-Limit, Heizstab-Bivalent.</p>
+          <p><strong>Was modelliert ist:</strong> Klimaprofil mit Tag/Nacht und Kältewellen, getrennte WE1/WE2 mit eigenen UA und Heizkurven (gemeinsame VL-Anforderung), Warmwasserlast mit realistischem Tagesprofil, 3-Schicht-Puffer mit Verlusten, WP-Carnot-Modell mit Gütegrad und VL-Limit, Heizstab-Bivalent, LWWP-Abtauverluste.</p>
+          <p><strong>Warmwasser-Bereitung:</strong> Vier Modi: (1) <em>FriWa Festwert</em> — WP lädt Puffer immer auf T_WW+5°C, gesamte Wärme bei hohem Hub erzeugt. (2) <em>FriWa Schichtladung</em> — Heizanteil wird bei VL der Heizkurve erzeugt (besserer COP), nur WW-Anteil bei 60°C. Der COP wird gewichtet nach Lastanteil berechnet. (3) <em>Brauchwasser-WP</em> — WW komplett entkoppelt, eigene WP mit COP 3,7. (4) <em>Deaktiviert</em>.</p>
           <p><strong>Was fehlt</strong> (bewusste Vereinfachung): RC-Gebäudemodell (statisches UA reicht für Aussage), echte TMY-Wetterdaten (synthetisch ist deutlich näher an der Realität als Sinus), Inverter-Modulation und Takten (5–10% Effekt auf SCOP), Solargewinne, interne Lasten.</p>
           <p>Mehr: <a href="https://www.dwd.de/DE/leistungen/testreferenzjahre/testreferenzjahre.html" target="_blank">DWD Testreferenzjahre</a> · <a href="https://www.vdi.de/richtlinien/details/vdi-4655-referenzlastprofile-von-wohngebaeuden-fuer-strom-heizung-und-trinkwarmwasser-sowie-referenzerzeugungsprofile-fuer-fotovoltaikanlagen" target="_blank">VDI 4655 Lastprofile</a></p>
         </div>
@@ -175,32 +226,11 @@ Bilanz
     </div>
 
     <div class="card" style="margin-top: 16px;">
-      <h2>Energiebilanz-Übersicht</h2>
-      <div class="meta">Jahressummen für das aktuell gewählte Wetterszenario, alle 5 Erzeuger-Optionen verglichen.</div>
-      <div class="grid grid-3" style="margin-bottom: 16px;">
-        <div class="card" style="background: var(--bg-soft); border: none;">
-          <div class="meta" id="kpi-q-total-label">Wärmebedarf gesamt</div>
-          <div style="font-size: 28px; font-weight: 500; font-variant-numeric: tabular-nums;" id="kpi-q-total">– kWh/a</div>
-        </div>
-        <div class="card" style="background: var(--bg-soft); border: none;">
-          <div class="meta">WE1 Altbau · UA <span id="kpi-ua1">–</span> kW/K</div>
-          <div style="font-size: 28px; font-weight: 500; font-variant-numeric: tabular-nums;" id="kpi-q-we1">– kWh/a</div>
-        </div>
-        <div class="card" style="background: var(--bg-soft); border: none;">
-          <div class="meta">WE2 Neubau · UA <span id="kpi-ua2">–</span> kW/K</div>
-          <div style="font-size: 28px; font-weight: 500; font-variant-numeric: tabular-nums;" id="kpi-q-we2">– kWh/a</div>
-        </div>
-        <div class="card" style="background: var(--bg-soft); border: none;">
-          <div class="meta" id="kpi-q-ww-label">Warmwasser</div>
-          <div style="font-size: 28px; font-weight: 500; font-variant-numeric: tabular-nums;" id="kpi-q-ww">– kWh/a</div>
-        </div>
-        <div class="card" style="background: var(--bg-soft); border: none;">
-          <div class="meta">Pufferverluste</div>
-          <div style="font-size: 28px; font-weight: 500; font-variant-numeric: tabular-nums;" id="kpi-q-loss">– kWh/a</div>
-        </div>
-      </div>
+      <h2>Systemvergleich · Detail</h2>
+      <div class="meta">Detaillierte Kennzahlen je Erzeuger-Option: Energiebedarf, SCOP, Kosten, Anschaffung.</div>
       <div class="grid grid-3" id="overview-cards"></div>
     </div>
+
   </section>
 
   <!-- TAB: PARAMETER -->
@@ -234,14 +264,14 @@ Bilanz
           <label style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
             WW-Bereitung:
             <select id="ww-modus" style="height: 30px; padding: 0 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card); font-size: 12px; font-family: inherit; color: var(--text);">
-              <option value="friwa">Frischwasserstation (FriWa)</option>
+              <option value="friwa">FriWa · Festwert-Ladung</option>
+              <option value="friwa-schicht">FriWa · Schichtladung</option>
               <option value="bwwp">Brauchwasser-Wärmepumpe</option>
               <option value="aus">Deaktiviert</option>
             </select>
           </label>
         </div>
         <div id="inputs-ww"></div>
-        <div id="inputs-bwwp"></div>
         <div class="kpi-grid" id="ww-kpis" style="max-width: 400px; margin-top: 10px;">
           <div class="key">VL-Minimum</div><div class="val" id="ww-kpi-vl">–</div>
           <div class="key">Jahres-WW-Last</div><div class="val" id="ww-kpi-last">–</div>
@@ -260,6 +290,49 @@ Bilanz
         <div id="inputs-preise-1"></div>
         <div id="inputs-preise-2"></div>
         <div id="inputs-preise-3"></div>
+        <div style="display: flex; align-items: center; gap: 8px; margin: 12px 0 8px;">
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
+            <input type="checkbox" id="infl-toggle" style="width: 16px; height: 16px;">
+            Inflation im TCO berücksichtigen
+          </label>
+        </div>
+        <div id="infl-inputs" style="opacity: 0.4;">
+          <div id="inputs-infl"></div>
+        </div>
+        <div class="kpi-grid" id="preise-kpis" style="max-width: 400px; margin-top: 10px;">
+          <div class="key">Strom in 20 J</div><div class="val" id="kpi-strom-20">–</div>
+          <div class="key">Heizöl in 20 J</div><div class="val" id="kpi-oel-20">–</div>
+          <div class="key">Holz in 20 J</div><div class="val" id="kpi-holz-20">–</div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>BAFA/BEG Förderung</h2>
+        <div class="meta">Förderfähig: Wärmepumpen (B33, A29, LWWP). Max. förderfähige Kosten: 45.000 € (2 WE: 30k + 15k). Kumuliert max. 70%.</div>
+        <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; margin-bottom: 10px;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="foerd-grund" style="width: 14px; height: 14px;">
+            Grundförderung (30%) — jeder Eigentümer
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="foerd-klima" style="width: 14px; height: 14px;">
+            Klimageschwindigkeitsbonus (20%) — Ersatz fossiler Heizung, Selbstnutzer
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="foerd-effizienz" style="width: 14px; height: 14px;">
+            Effizienzbonus (5%) — natürliches Kältemittel oder Erdwärme
+          </label>
+        </div>
+        <div class="kpi-grid" id="foerd-kpis" style="max-width: 400px; margin-top: 10px;">
+          <div class="key">Fördersatz</div><div class="val" id="kpi-foerd-pct">–</div>
+          <div class="key">B33 Förderung</div><div class="val" id="kpi-foerd-b33">–</div>
+          <div class="key">A29 Förderung</div><div class="val" id="kpi-foerd-a29">–</div>
+          <div class="key">LWWP Förderung</div><div class="val" id="kpi-foerd-lwwp">–</div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Mischbetrieb</h2>
+        <div class="meta">Anteil Holzvergaser vs. Backup-System. Rest wird vom günstigsten Backup übernommen.</div>
+        <div id="inputs-mischbetrieb"></div>
       </div>
     </div>
   </section>
@@ -410,13 +483,6 @@ Bilanz
 
   <!-- TAB: MISCHBETRIEB -->
   <section class="panel" id="panel-mischbetrieb">
-    <div class="controls-row">
-      <label>Holz-Anteil:
-        <input type="number" id="mb-anteil" value="80" step="5" min="0" max="100">%
-        <span class="label-tag">Rest = Backup-System</span>
-      </label>
-    </div>
-
     <div class="grid grid-2">
       <div class="card" id="mb-holz-card">
         <h2>Holzvergaser · Primärsystem</h2>
@@ -455,34 +521,39 @@ Bilanz
       </div>
     </div>
 
-    <div class="card" style="margin-top: 16px;">
-      <h2>Mehrkosten gegenüber 100% Holz</h2>
-      <div class="meta">Bei zufallsverteiltem Einsatz von Holz (Anteil) und Backup-System (Rest). Der Differenzbetrag ist der "Komfort-Preis" für Stunden in denen kein Holz nachgelegt werden muss.</div>
-      <div class="chart-frame tall"><canvas id="chart-mb-extra"></canvas></div>
-    </div>
-
-    <div class="card" style="margin-top: 16px;">
-      <h2>Jahreskosten Solo Holz vs. Mischbetrieb</h2>
-      <div class="meta">Absolute Kosten über das Jahr. Holz-Linie ist die Referenz, Mischbetrieb-Linie liegt darüber — der Abstand sind die Komfort-Mehrkosten.</div>
-      <div class="chart-frame tall"><canvas id="chart-mb-cum"></canvas></div>
-    </div>
-
-    <div class="card" style="margin-top: 16px;">
-      <h2>20-Jahre-Gesamtkosten Backup · Anschaffung + Mehrkosten + Wartung</h2>
-      <div class="meta">Bei <span id="mb-anteil-display">80</span>% Holz-Anteil und ohne Förderung. Anschaffungskosten zusätzlich zum Holzvergaser plus 20 Jahre kumulierte Komfort-Mehrkosten plus 20 Jahre Wartungskosten. Hinweis: Wärmepumpen sind über BAFA/BEG bis max. 15.000 € förderfähig — die Werte hier zeigen den Worst-Case ohne Förderung.</div>
-      <div class="chart-frame tall"><canvas id="chart-mb-tco20"></canvas></div>
-    </div>
-
-    <div class="card" style="margin-top: 16px;">
-      <h2>Kumulative Gesamtkosten über 20 Jahre · Verlauf</h2>
-      <div class="meta">Anschaffung im Jahr 0 als Sprung, dann jährliche Mehrkosten linear akkumuliert. Zeigt wann sich welches System gegenüber den anderen amortisiert. Wo Linien sich kreuzen, lohnt der Wechsel.</div>
-      <div class="chart-frame tall"><canvas id="chart-mb-tco-time"></canvas></div>
+    <div class="grid grid-2" style="margin-top: 16px;">
+      <div class="card">
+        <h2>Mehrkosten gegenüber 100% Holz</h2>
+        <div class="meta">Differenzbetrag = "Komfort-Preis" für Stunden ohne Holz nachlegen.</div>
+        <div class="chart-frame tall"><canvas id="chart-mb-extra"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>Jahreskosten Solo Holz vs. Mischbetrieb</h2>
+        <div class="meta">Holz-Linie ist Referenz, Mischbetrieb liegt darüber — Abstand = Mehrkosten.</div>
+        <div class="chart-frame tall"><canvas id="chart-mb-cum"></canvas></div>
+      </div>
     </div>
 
     <div class="card" style="margin-top: 16px;">
       <h2>Mehrkosten je Backup-System bei verschiedenen Holz-Anteilen</h2>
       <div class="meta">Wie teuer wird der Komfort, wenn der Holz-Anteil 50%, 70%, 80%, 90% beträgt? Bei 100% Holz keine Mehrkosten — alles selbst gemacht.</div>
       <div class="chart-frame tall"><canvas id="chart-mb-sweep"></canvas></div>
+    </div>
+
+    <h2 style="font-size: 16px; font-weight: 500; margin: 28px 0 8px; color: var(--text-soft);">20-Jahres-Projektion</h2>
+    <div class="meta" style="margin-bottom: 16px; font-size: 12px; color: var(--text-mute);">Bei <span id="mb-anteil-display">90</span>% Holz-Anteil. Förderung und Inflation konfigurierbar im Parameter-Tab.</div>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <h2>Gesamtkosten · Anschaffung + Mehrkosten + Wartung</h2>
+        <div class="meta">Stacked: Anschaffung, 20J Mehrkosten, 20J Wartung (ggf. BWWP).</div>
+        <div class="chart-frame tall"><canvas id="chart-mb-tco20"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>Kumulative Gesamtkosten · Verlauf</h2>
+        <div class="meta">Anschaffung im Jahr 0, dann jährliche Mehrkosten akkumuliert. Kreuzungspunkte = Amortisation.</div>
+        <div class="chart-frame tall"><canvas id="chart-mb-tco-time"></canvas></div>
+      </div>
     </div>
 
     <div class="card desc" style="margin-top: 16px;">
@@ -503,13 +574,13 @@ Bilanz
 // ============================================
 const P = {
   // Klima
-  T_mittel: 9.5, T_amp: 11, T_phase: 18, T_tagesgang: 4.5, Kaeltewellen_intensity: 1.0, seed: 42,
+  T_mittel: 9.5, T_amp: 11, T_phase: 18, T_tagesgang: 4.5, Kaeltewellen_intensity: 1.0,
   // WE1 Altbau
   Q_norm_WE1: 22.1, T_Norm: -12, T_HG_WE1: 17, VL_aus_WE1: 65, T_soll_tag_WE1: 22, T_soll_nacht_WE1: 18,
   // WE2 Neubau
   Q_norm_WE2: 5.7, T_HG_WE2: 15, VL_aus_WE2: 35, T_soll_tag_WE2: 22, T_soll_nacht_WE2: 19, WE2_aktiv: true,
   // Warmwasser
-  WW_kWh_d: 9.6, T_WW: 55, WW_modus: 'friwa', // 6P · ~40L/P · ΔT 35K (12→47°C)
+  WW_kWh_d: 9.6, T_WW: 55, T_WW_offset: 5, WW_modus: 'friwa', // 6P · ~40L/P · ΔT 35K (12→47°C)
   // Brauchwasser-WP
   BWWP_cop: 3.7, BWWP_capex: 3500, BWWP_wartung: 50,
   // Puffer
@@ -517,11 +588,16 @@ const P = {
   // Strompreis etc
   P_Strom: 0.32, P_Oel: 1.10, HW_Oel: 10, eta_Oel: 0.97,
   P_Holz: 90, HW_Holz: 1600, eta_Holz: 0.92,
+  // Jährliche Preissteigerung für TCO-Verlauf
+  Infl_Strom: 1, Infl_Oel: 3, Infl_Holz: 2, Infl_aktiv: false, MB_Anteil_Holz: 90,
+  // BAFA/BEG Förderung
+  Foerd_grund: false, Foerd_klima: false, Foerd_effizienz: false, Foerd_max: 45000, // 30k (1. WE) + 15k (2. WE)
   // Heizstab
   Stab_kW: 36, eta_Stab: 1.0,
   // Wartungskosten €/Jahr je System
   W_b33: 250, W_a29: 250, W_lwwp: 300, W_oel: 350, W_holz: 350,
 };
+const P_DEFAULTS = JSON.parse(JSON.stringify(P));
 
 const COL = {
   holz: '#0F6E56', oel: '#993C1D', stab: '#D4A017',
@@ -544,6 +620,26 @@ const HOURS = 8760;
 // Anschaffungskosten schlüsselfertig ohne Förderung
 const CAPEX = { b33: 40000, a29: 30500, lwwp: 35000, oel: 16000, holz: 27300 };
 
+// Förderung berechnen: nur WP förderfähig, gedeckelt bei 70%
+function calcFoerderung(sysKey) {
+  if (sysKey !== 'b33' && sysKey !== 'a29' && sysKey !== 'lwwp') return 0;
+  let pct = 0;
+  if (P.Foerd_grund) pct += 30;
+  if (P.Foerd_klima) pct += 20;
+  if (P.Foerd_effizienz) pct += 5;
+  pct = Math.min(pct, 70); // gesetzliche Deckelung
+  const foerdFaehig = Math.min(CAPEX[sysKey], P.Foerd_max);
+  return Math.round(foerdFaehig * pct / 100);
+}
+
+function calcFoerdPct() {
+  let pct = 0;
+  if (P.Foerd_grund) pct += 30;
+  if (P.Foerd_klima) pct += 20;
+  if (P.Foerd_effizienz) pct += 5;
+  return Math.min(pct, 70);
+}
+
 // ============================================
 // PHYSIK-FUNKTIONEN
 // ============================================
@@ -552,31 +648,28 @@ const CAPEX = { b33: 40000, a29: 30500, lwwp: 35000, oel: 16000, holz: 27300 };
 function mulberry32(a) { return function() { let t = a += 0x6D2B79F5; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 
 // Synthetisches Wetter: Sinus-Jahresgang + Tagesgang + stochastische Kältewellen
-function buildWeather() {
+const WEATHER_SEEDS = [42, 137, 271, 419, 563];
+
+function buildWeatherSingle(seed) {
   const T = new Float32Array(HOURS);
-  const rng = mulberry32(P.seed);
-  // Glatter Jahresgang
+  const rng = mulberry32(seed);
   for (let h = 0; h < HOURS; h++) {
     const day = h / 24;
     const yearPhase = 2 * Math.PI * (day - P.T_phase) / 365;
-    const dailyPhase = 2 * Math.PI * (h % 24 - 14) / 24; // Max bei 14 Uhr
+    const dailyPhase = 2 * Math.PI * (h % 24 - 14) / 24;
     T[h] = P.T_mittel - P.T_amp * Math.cos(yearPhase) - P.T_tagesgang * Math.cos(dailyPhase) * 0.5;
   }
-  // Stochastische Kältewellen — multitag-Anomalien
-  // Bias auf Wintermonate (Tag 0–60 und 305–365)
   if (P.Kaeltewellen_intensity > 0) {
-    const numEvents = Math.floor(8 + rng() * 6); // 8–14 Wetterevents/Jahr
+    const numEvents = Math.floor(8 + rng() * 6);
     for (let e = 0; e < numEvents; e++) {
       const r = rng();
-      // Bias: 70% der Events im Winter
       let center;
       if (rng() < 0.7) {
         center = (rng() < 0.5 ? rng() * 70 : 290 + rng() * 75) * 24;
       } else {
         center = rng() * HOURS;
       }
-      const duration = (24 + rng() * 96); // 1–5 Tage
-      // Im Winter eher Kältewellen, im Sommer eher Hitzewellen
+      const duration = (24 + rng() * 96);
       const dayOfYear = (center / 24) % 365;
       const winterFactor = (dayOfYear < 90 || dayOfYear > 270) ? 1 : -0.5;
       const amplitude = (3 + rng() * 7) * winterFactor * P.Kaeltewellen_intensity * (rng() < 0.7 ? -1 : 1);
@@ -588,11 +681,20 @@ function buildWeather() {
         }
       }
     }
-    // Etwas Rauschen oben drauf
     for (let h = 0; h < HOURS; h++) {
       T[h] += (rng() - 0.5) * 1.5;
     }
   }
+  return T;
+}
+
+function buildWeather() {
+  const T = new Float32Array(HOURS);
+  for (const seed of WEATHER_SEEDS) {
+    const Ts = buildWeatherSingle(seed);
+    for (let h = 0; h < HOURS; h++) T[h] += Ts[h];
+  }
+  for (let h = 0; h < HOURS; h++) T[h] /= WEATHER_SEEDS.length;
   return T;
 }
 
@@ -683,7 +785,7 @@ function buildLoads(T_aus) {
   const Q_WE2 = new Float32Array(HOURS);
   const Q_WW = new Float32Array(HOURS);
   const VL_soll = new Float32Array(HOURS);
-  const T_VL_WW = P.T_WW + 5; // FriWa braucht Puffer-Oben mindestens T_WW + 5°C
+  const T_VL_WW = P.T_WW + P.T_WW_offset; // FriWa braucht Puffer-Oben mindestens T_WW + Offset
 
   for (let h = 0; h < HOURS; h++) {
     const ta = T_aus[h];
@@ -692,14 +794,17 @@ function buildLoads(T_aus) {
 
     Q_WE1[h] = ta < P.T_HG_WE1 ? UA1 * Math.max(0, tsoll1 - ta) : 0;
     Q_WE2[h] = P.WE2_aktiv && ta < P.T_HG_WE2 ? UA2 * Math.max(0, tsoll2 - ta) : 0;
-    // FriWa: WW-Last geht in den Puffer, VL muss 60°C sein
+    // FriWa (beide Varianten): WW-Last geht in den Puffer
     // BWWP: WW separat, Puffer nur für Heizung
     // aus: kein WW
-    Q_WW[h] = P.WW_modus === 'friwa' ? WW_profile(h) : 0;
+    const isFriWaAny = P.WW_modus === 'friwa' || P.WW_modus === 'friwa-schicht';
+    Q_WW[h] = isFriWaAny ? WW_profile(h) : 0;
 
     const vl1 = ta < P.T_HG_WE1 ? VL_kurve(ta, P.T_HG_WE1, P.T_Norm, tsoll1, P.VL_aus_WE1) : 0;
     const vl2 = P.WE2_aktiv && ta < P.T_HG_WE2 ? VL_kurve(ta, P.T_HG_WE2, P.T_Norm, tsoll2, P.VL_aus_WE2) : 0;
-    VL_soll[h] = P.WW_modus === 'friwa' ? Math.max(vl1, vl2, T_VL_WW) : Math.max(vl1, vl2);
+    const vlHeiz = Math.max(vl1, vl2);
+    // Beide FriWa-Modi: Puffer muss 60°C oben haben. Unterschied nur im COP (simulate).
+    VL_soll[h] = isFriWaAny ? Math.max(vlHeiz, T_VL_WW) : vlHeiz;
   }
   return { Q_WE1, Q_WE2, Q_WW, VL_soll };
 }
@@ -776,7 +881,8 @@ function simulate(sysKey, T_aus, loads) {
     // Q_gen ≈ Q_demand + minimale Puffernachladung. Brenner takten in der Realität sub-stündlich;
     // wir approximieren das durch eine bedarfsproportionale Leistung mit kleinem Aufschlag.
     const T_max_buf = 75;
-    const T_min_buf = P.WW_modus === 'friwa' ? Math.max(VL + 2, P.T_WW + 5) : VL + 2;
+    const isFriWaAny_sim = P.WW_modus === 'friwa' || P.WW_modus === 'friwa-schicht';
+    const T_min_buf = isFriWaAny_sim ? Math.max(VL + 2, P.T_WW + P.T_WW_offset) : VL + 2;
 
     if (T_max_buf > T_min_buf) {
       // Hysterese: Erzeuger an wenn Pufferspitze unter VL+5, aus wenn deutlich darüber
@@ -832,6 +938,26 @@ function simulate(sysKey, T_aus, loads) {
         // Abtauverluste LWWP: bei 0–7°C und hoher Feuchte vereist der Verdampfer
         if (wp.quelle === 'luft' && T_a >= -2 && T_a <= 7) {
           cop *= 0.93; // ~7% COP-Einbuße durch Abtauzyklen
+        }
+        // Schichtladung: Heizanteil bei VL_heiz (besser COP), nur WW bei 60°C
+        if (P.WW_modus === 'friwa-schicht' && Q_demand > 0) {
+          const Q_heiz_h = loads.Q_WE1[h] + loads.Q_WE2[h];
+          const Q_ww_h = loads.Q_WW[h];
+          if (Q_heiz_h > 0 && Q_ww_h > 0) {
+            const vlHeiz = Math.max(
+              T_a < P.T_HG_WE1 ? VL_kurve(T_a, P.T_HG_WE1, P.T_Norm, T_soll_we(h, P.T_soll_tag_WE1, P.T_soll_nacht_WE1), P.VL_aus_WE1) : 0,
+              P.WE2_aktiv && T_a < P.T_HG_WE2 ? VL_kurve(T_a, P.T_HG_WE2, P.T_Norm, T_soll_we(h, P.T_soll_tag_WE2, P.T_soll_nacht_WE2), P.VL_aus_WE2) : 0
+            );
+            if (vlHeiz > 0 && vlHeiz < VL_real) {
+              const vlHeizReal = Math.min(vlHeiz, wp.vlMax);
+              const copHeiz = copCarnot(vlHeizReal, T_q, wp.eta);
+              const copWW = cop; // cop ist bereits bei VL_real (60°C) berechnet
+              // Gewichteter COP nach Lastanteil
+              const fHeiz = Q_heiz_h / Q_demand;
+              const fWW = Q_ww_h / Q_demand;
+              cop = 1 / (fHeiz / copHeiz + fWW / copWW);
+            }
+          }
         }
         const kW_wp_max = WP_kWmax(sysKey, T_a, VL_real);
         const Q_wp = Math.min(kW_wp_max, headroom);
@@ -1008,7 +1134,6 @@ function setupInputs() {
   makeInput(grp('inputs-klima'), 'T_amp', 'Jahres-Amplitude', 'K', 0.5);
   makeInput(grp('inputs-klima'), 'T_tagesgang', 'Tagesgang Amplitude', 'K', 0.5);
   makeInput(grp('inputs-klima'), 'Kaeltewellen_intensity', 'Kältewellen-Intensität', '–', 0.1);
-  makeInput(grp('inputs-klima'), 'seed', 'Random-Seed', '–', 1);
 
   makeInput(grp('inputs-we1'), 'Q_norm_WE1', 'Norm-Heizlast', 'kW', 0.5);
   makeInput(grp('inputs-we1'), 'T_Norm', 'Auslegungs-T_aus', '°C', 1);
@@ -1024,10 +1149,8 @@ function setupInputs() {
   makeInput(grp('inputs-we2'), 'T_soll_nacht_WE2', 'Raum-T nachts', '°C', 0.5);
 
   makeInput(grp('inputs-ww'), 'WW_kWh_d', 'WW-Bedarf', 'kWh/d', 0.5);
-  makeInput(grp('inputs-ww'), 'T_WW', 'WW-Speichertemp.', '°C', 1);
-  makeInput(grp('inputs-bwwp'), 'BWWP_cop', 'BWWP COP', '–', 0.1);
-  makeInput(grp('inputs-bwwp'), 'BWWP_capex', 'BWWP Anschaffung', '€', 100);
-  makeInput(grp('inputs-bwwp'), 'BWWP_wartung', 'BWWP Wartung', '€/a', 10);
+  makeInput(grp('inputs-ww'), 'T_WW', 'WW-Solltemp.', '°C', 1);
+  makeInput(grp('inputs-ww'), 'T_WW_offset', 'FriWa-Offset (ΔT WT)', 'K', 1);
 
   makeInput(grp('inputs-puffer'), 'V_Puffer', 'Volumen', 'L', 250);
   makeInput(grp('inputs-puffer'), 'T_Umg', 'Heizraum-T', '°C', 1);
@@ -1036,12 +1159,31 @@ function setupInputs() {
   makeInput(grp('inputs-preise-1'), 'P_Strom', 'Strompreis', '€/kWh', 0.01);
   makeInput(grp('inputs-preise-2'), 'P_Oel', 'Heizöl', '€/L', 0.05);
   makeInput(grp('inputs-preise-3'), 'P_Holz', 'Holz', '€/RM', 5);
+  makeInput(grp('inputs-mischbetrieb'), 'MB_Anteil_Holz', 'Holz-Anteil', '%', 5);
+
+  makeInput(grp('inputs-infl'), 'Infl_Strom', 'Strom', '%/a', 0.5);
+  makeInput(grp('inputs-infl'), 'Infl_Oel', 'Heizöl', '%/a', 0.5);
+  makeInput(grp('inputs-infl'), 'Infl_Holz', 'Holz', '%/a', 0.5);
 }
 
 // ============================================
 // RENDER · ÜBERSICHT
 // ============================================
 function renderOverview() {
+  // Szenario-Pills
+  const pills = [];
+  const pill = (label, active, detail) => `<span class="pill ${active ? 'ok' : ''}" style="${active ? '' : 'background: rgba(142,140,132,0.12); color: var(--text-mute);'}">${label}${detail ? ': ' + detail : ''}</span>`;
+  pills.push(pill('WE1 Altbau', true, fmt1(P.Q_norm_WE1) + ' kW'));
+  pills.push(pill('WE2 Neubau', P.WE2_aktiv, P.WE2_aktiv ? fmt1(P.Q_norm_WE2) + ' kW' : 'aus'));
+  const wwLabels = { friwa: 'FriWa Festwert', 'friwa-schicht': 'FriWa Schichtladung', bwwp: 'BWWP', aus: 'aus' };
+  pills.push(pill('Warmwasser', P.WW_modus !== 'aus', wwLabels[P.WW_modus]));
+  const foerdPct = calcFoerdPct();
+  pills.push(pill('Förderung', foerdPct > 0, foerdPct > 0 ? foerdPct + '%' : 'aus'));
+  pills.push(pill('Inflation', P.Infl_aktiv, P.Infl_aktiv ? 'Strom ' + P.Infl_Strom + '% · Öl ' + P.Infl_Oel + '% · Holz ' + P.Infl_Holz + '%' : 'aus'));
+  const anteil = typeof P.MB_Anteil_Holz === 'number' ? P.MB_Anteil_Holz : 80;
+  pills.push(pill('Holz-Anteil', true, anteil + '% Holz / ' + (100 - anteil) + '% Backup'));
+  document.getElementById('scenario-pills').innerHTML = pills.join('');
+
   const r_b33 = STATE.results.b33.kpi;
   const sumArr = a => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i]; return s; };
   const Q_we1 = sumArr(STATE.loads.Q_WE1);
@@ -1062,14 +1204,15 @@ function renderOverview() {
   document.getElementById('kpi-q-loss').textContent = fmt0(r_b33.Q_loss) + ' kWh/a';
 
   // WW-Anzeige
-  const wwDisplay = P.WW_modus === 'friwa' ? fmt0(Q_ww_puffer) + ' kWh/a'
+  const isFriWaAny_r = P.WW_modus === 'friwa' || P.WW_modus === 'friwa-schicht';
+  const wwDisplay = isFriWaAny_r ? fmt0(Q_ww_puffer) + ' kWh/a'
     : P.WW_modus === 'bwwp' ? fmt0(wwTherm) + ' kWh/a (BWWP)'
     : 'deaktiviert';
   document.getElementById('kpi-q-ww').textContent = wwDisplay;
   const wwLabel = P.WW_modus === 'bwwp' ? 'Warmwasser (via BWWP)' : 'Warmwasser';
   document.getElementById('kpi-q-ww-label').textContent = wwLabel;
 
-  const qLabel = P.WW_modus === 'friwa' ? 'Wärmebedarf gesamt (Heizung + WW + Pufferverluste)'
+  const qLabel = isFriWaAny_r ? 'Wärmebedarf gesamt (Heizung + WW + Pufferverluste)'
     : P.WW_modus === 'bwwp' ? 'Wärmebedarf gesamt (Heizung + WW via BWWP + Pufferverluste)'
     : 'Wärmebedarf gesamt (nur Heizung + Pufferverluste)';
   document.getElementById('kpi-q-total-label').textContent = qLabel;
@@ -1126,7 +1269,7 @@ function renderOverview() {
           <div class="key">Q_gen / (Last+Verl)</div><div class="val" style="color: ${ratioColor};">${fmt2(r.gen_load_ratio)}</div>
           ${scopRow}
           ${eRow}
-          <div class="key">Anschaffung</div><div class="val">${fmt0(CAPEX[k])} €</div>
+          <div class="key">Anschaffung</div><div class="val">${fmt0(CAPEX[k])} €${calcFoerderung(k) > 0 ? ' <span style="color:var(--col-ok); font-size:10px;">−' + fmt0(calcFoerderung(k)) + ' Förd.</span>' : ''}</div>
           <div class="key">Wartung</div><div class="val">${fmt0(wartung)} €/a</div>
           <div class="key">Jahreskosten</div><div class="val">${fmt0(cost)} €</div>
           <div class="key">VL-Deckung</div><div class="val">${pct(r.coverage)}</div>
@@ -1136,7 +1279,7 @@ function renderOverview() {
 
   // BWWP-Card immer anzeigen
   const isBWWP = P.WW_modus === 'bwwp';
-  const isFriWa = P.WW_modus === 'friwa';
+  const isFriWa = P.WW_modus === 'friwa' || P.WW_modus === 'friwa-schicht';
   const wwJahr = Math.round(P.WW_kWh_d * 365);
   const bwwpStrom = isBWWP ? Math.round(wwJahr / P.BWWP_cop) : 0;
   const bwwpKosten = isBWWP ? Math.round(bwwpStrom * P.P_Strom + P.BWWP_wartung) : 0;
@@ -1162,12 +1305,13 @@ function renderOverview() {
 
   // WW-KPIs aktualisieren
   const metaTexts = {
-    friwa: 'Frischwasserstation (FriWa) am Puffer. Puffer-Oben muss ganzjährig mindestens ' + (P.T_WW + 5) + '°C halten — auch im Sommer. Erhöht den Hub und senkt den COP.',
+    friwa: 'FriWa mit Festwert-Ladung. Puffer wird immer auf ' + (P.T_WW + P.T_WW_offset) + '°C geladen — auch wenn die Heizkurve weniger fordert. Einfach, aber COP-Nachteil in der Übergangszeit.',
+    'friwa-schicht': 'FriWa mit Schichtladung. Heizanteil wird bei VL der Heizkurve erzeugt (besserer COP), nur der WW-Anteil bei ' + (P.T_WW + P.T_WW_offset) + '°C. Spart 10–15% Strom in der Übergangszeit.',
     bwwp: 'Separate Brauchwasser-WP (300L Speicher, COP ' + fmt1(P.BWWP_cop) + '). WW entkoppelt vom Hauptpuffer — Heizungs-WP kann im Sommer mit niedrigerer VL laufen.',
     aus: 'Warmwasser ist deaktiviert — nur Heizlast wird simuliert.',
   };
   document.getElementById('ww-meta').textContent = metaTexts[P.WW_modus];
-  document.getElementById('ww-kpi-vl').textContent = isFriWa ? (P.T_WW + 5) + '°C' : '—';
+  document.getElementById('ww-kpi-vl').textContent = isFriWa ? (P.T_WW + P.T_WW_offset) + '°C' : '—';
   document.getElementById('ww-kpi-last').textContent = P.WW_modus === 'aus' ? 'deaktiviert' : fmt0(wwJahr) + ' kWh/a';
 
   const showBwwp = isBWWP ? '' : 'none';
@@ -1178,6 +1322,27 @@ function renderOverview() {
   if (isBWWP) {
     document.getElementById('ww-kpi-strom').textContent = fmt0(bwwpStrom) + ' kWh/a';
     document.getElementById('ww-kpi-cost').textContent = fmt0(bwwpKosten) + ' €/a';
+  }
+
+  // Energiepreise in 20 Jahren
+  // Förderungs-KPIs
+  const foerdAktiv = calcFoerdPct() > 0;
+  document.getElementById('kpi-foerd-pct').textContent = foerdAktiv ? calcFoerdPct() + '%' : '—';
+  document.getElementById('kpi-foerd-b33').textContent = foerdAktiv ? '−' + fmt0(calcFoerderung('b33')) + ' €' : '—';
+  document.getElementById('kpi-foerd-a29').textContent = foerdAktiv ? '−' + fmt0(calcFoerderung('a29')) + ' €' : '—';
+  document.getElementById('kpi-foerd-lwwp').textContent = foerdAktiv ? '−' + fmt0(calcFoerderung('lwwp')) + ' €' : '—';
+
+  if (P.Infl_aktiv) {
+    const strom20 = P.P_Strom * Math.pow(1 + P.Infl_Strom / 100, 20);
+    const oel20 = P.P_Oel * Math.pow(1 + P.Infl_Oel / 100, 20);
+    const holz20 = P.P_Holz * Math.pow(1 + P.Infl_Holz / 100, 20);
+    document.getElementById('kpi-strom-20').textContent = fmt2(strom20) + ' €/kWh';
+    document.getElementById('kpi-oel-20').textContent = fmt2(oel20) + ' €/L';
+    document.getElementById('kpi-holz-20').textContent = fmt0(Math.round(holz20)) + ' €/RM';
+  } else {
+    document.getElementById('kpi-strom-20').textContent = '—';
+    document.getElementById('kpi-oel-20').textContent = '—';
+    document.getElementById('kpi-holz-20').textContent = '—';
   }
 }
 
@@ -1277,7 +1442,7 @@ function renderWeather() {
     data: { labels: days, datasets: [
       { label: 'VL Heizkurve max (Heizung pur)', data: Array.from(vlHeizMax).map(v => +v.toFixed(1)), borderColor: COL.oel, borderWidth: 2, pointRadius: 0, tension: 0.2 },
       { label: 'VL Heizkurve Tages-Ø', data: Array.from(vlHeizMean).map(v => +v.toFixed(1)), borderColor: COL.oel + '80', borderWidth: 1.5, pointRadius: 0, tension: 0.2, borderDash: [3, 2] },
-      { label: 'WW-Anforderung (T_WW + 5)', data: days.map(_ => P.T_WW + 5), borderColor: COL.stab, borderWidth: 1.5, pointRadius: 0, borderDash: [4, 3] },
+      { label: 'WW-Anforderung (T_WW + 5)', data: days.map(_ => P.T_WW + P.T_WW_offset), borderColor: COL.stab, borderWidth: 1.5, pointRadius: 0, borderDash: [4, 3] },
       { label: 'VL_soll = max() · resultierend', data: Array.from(vlCombMax).map(v => +v.toFixed(1)), borderColor: COL.vl, borderWidth: 2.5, pointRadius: 0, tension: 0.2 },
       { label: 'A29 VL_max 60°C', data: days.map(_ => 60), borderColor: COL.a29, borderWidth: 1, borderDash: [2, 4], pointRadius: 0 },
       { label: 'LWWP VL_max 70°C', data: days.map(_ => 70), borderColor: COL.lwwp, borderWidth: 1, borderDash: [2, 4], pointRadius: 0 },
@@ -1304,7 +1469,7 @@ function renderWeather() {
     if (ta >= P.T_HG_WE2) return P.T_soll_tag_WE2;
     return VL_kurve(ta, P.T_HG_WE2, P.T_Norm, P.T_soll_tag_WE2, P.VL_aus_WE2);
   });
-  const VL_WW_curve = T_range.map(_ => P.T_WW + 5);
+  const VL_WW_curve = T_range.map(_ => P.T_WW + P.T_WW_offset);
   const VL_combined = T_range.map((_, i) => Math.max(VL_WE1_curve[i], VL_WE2_curve[i], VL_WW_curve[i]));
 
   if (charts.heizkurve) charts.heizkurve.destroy();
@@ -1313,7 +1478,7 @@ function renderWeather() {
     data: { labels: T_range.map(t => t.toFixed(1)), datasets: [
       { label: 'WE1 Altbau (' + P.VL_aus_WE1 + '°C @ ' + P.T_Norm + '°C)', data: VL_WE1_curve.map(v => +v.toFixed(1)), borderColor: COL.oel, borderWidth: 2, pointRadius: 0, tension: 0 },
       { label: 'WE2 Neubau (' + P.VL_aus_WE2 + '°C @ ' + P.T_Norm + '°C)', data: VL_WE2_curve.map(v => +v.toFixed(1)), borderColor: COL.a29, borderWidth: 2, pointRadius: 0, tension: 0 },
-      { label: 'Warmwasser (' + (P.T_WW + 5) + '°C konstant)', data: VL_WW_curve.map(v => +v.toFixed(1)), borderColor: COL.stab, borderWidth: 1.5, borderDash: [5, 3], pointRadius: 0 },
+      { label: 'Warmwasser (' + (P.T_WW + P.T_WW_offset) + '°C konstant)', data: VL_WW_curve.map(v => +v.toFixed(1)), borderColor: COL.stab, borderWidth: 1.5, borderDash: [5, 3], pointRadius: 0 },
       { label: 'VL_soll = Maximum', data: VL_combined.map(v => +v.toFixed(1)), borderColor: COL.vl, borderWidth: 2.5, pointRadius: 0, tension: 0 },
       { label: 'A29 VL_max 60°C', data: T_range.map(_ => 60), borderColor: COL.a29 + '80', borderWidth: 1.2, borderDash: [3, 3], pointRadius: 0 },
       { label: 'LWWP VL_max 70°C', data: T_range.map(_ => 70), borderColor: COL.lwwp + '80', borderWidth: 1.2, borderDash: [3, 3], pointRadius: 0 },
@@ -1729,6 +1894,49 @@ function renderMischbetrieb() {
   const wartungBackup = { b33: P.W_b33, a29: P.W_a29, lwwp: P.W_lwwp, oel: P.W_oel };
   const horizon = 20;
 
+  // Inflation + Kostenaufschlüsselung für TCO
+  const iStrom = P.Infl_aktiv ? P.Infl_Strom / 100 : 0;
+  const iOel = P.Infl_aktiv ? P.Infl_Oel / 100 : 0;
+  const iHolz = P.Infl_aktiv ? P.Infl_Holz / 100 : 0;
+
+  const costBreakdown = backupKeys.map((k, ki) => {
+    const rb = STATE.results[k];
+    if (!rb || !rb.ts) return { strom: 0, oel: 0, holzDiff: 0 };
+    let mixStrom = 0, mixOel = 0, mixHolz = 0;
+    for (const useHolz of useHolzAll) {
+      let sStrom = 0, sOel = 0, sHolz = 0;
+      for (let i = 0; i < HOURS; i++) {
+        if (useHolz[i]) {
+          sHolz += (rH.ts.e_holz[i] || 0);
+        } else {
+          sStrom += (rb.ts.e_strom[i] || 0);
+          sOel += (rb.ts.e_oel[i] || 0);
+        }
+      }
+      mixStrom += sStrom; mixOel += sOel; mixHolz += sHolz;
+    }
+    let soloHolzE = 0;
+    for (let i = 0; i < HOURS; i++) soloHolzE += (rH.ts.e_holz[i] || 0);
+    const holzSaved = soloHolzE - mixHolz / N_SEEDS;
+    return {
+      strom: mixStrom / N_SEEDS * P.P_Strom,
+      oel: mixOel / N_SEEDS * P.P_Oel,
+      holzDiff: -(holzSaved / P.HW_Holz) * P.P_Holz,
+    };
+  });
+
+  function tcoAtYear(ki, y, capexOffset) {
+    const bd = costBreakdown[ki];
+    let cum = capexOffset + bwwpCapex;
+    for (let j = 0; j < y; j++) {
+      const fStrom = Math.pow(1 + iStrom, j);
+      const fOel = Math.pow(1 + iOel, j);
+      const fHolz = Math.pow(1 + iHolz, j);
+      cum += bd.strom * fStrom + bd.oel * fOel + bd.holzDiff * fHolz + wartungBackup[backupKeys[ki]] + bwwpJahr;
+    }
+    return Math.round(cum);
+  }
+
   document.getElementById('mb-anteil-display').textContent = P.MB_Anteil_Holz;
 
   if (charts.mbTco20) charts.mbTco20.destroy();
@@ -1738,8 +1946,8 @@ function renderMischbetrieb() {
       labels: backupKeys.map(k => backupNames[k]),
       datasets: [
         ...(bwwpActive ? [{ label: 'BWWP (Anschaffung + 20 J Betrieb)', data: backupKeys.map(() => Math.round(bwwpCapex + horizon * bwwpJahr)), backgroundColor: '#ccc', borderRadius: 4, stack: 'tco' }] : []),
-        { label: 'Anschaffung', data: backupKeys.map(k => capexBackup[k]), backgroundColor: backupKeys.map(k => COL[k] + 'AA'), borderRadius: 4, stack: 'tco' },
-        { label: '20 J Mehrkosten', data: backupKeys.map((k, i) => Math.round(horizon * extraCost[i])), backgroundColor: backupKeys.map(k => COL[k]), borderRadius: 4, stack: 'tco' },
+        { label: 'Anschaffung' + (P.Foerd_aktiv ? ' (nach Förderung)' : ''), data: backupKeys.map(k => capexBackup[k] - calcFoerderung(k)), backgroundColor: backupKeys.map(k => COL[k] + 'AA'), borderRadius: 4, stack: 'tco' },
+        { label: '20 J Mehrkosten', data: backupKeys.map((k, ki) => tcoAtYear(ki, horizon, 0) - bwwpCapex - horizon * (wartungBackup[k] + bwwpJahr)), backgroundColor: backupKeys.map(k => COL[k]), borderRadius: 4, stack: 'tco' },
         { label: '20 J Wartung', data: backupKeys.map(k => Math.round(horizon * wartungBackup[k])), backgroundColor: backupKeys.map(k => COL[k] + '55'), borderRadius: 4, stack: 'tco' },
       ]
     },
@@ -1754,29 +1962,15 @@ function renderMischbetrieb() {
 
   // Plot 3b: Kumulative Gesamtkosten über 20 Jahre – Verlauf (Linie)
   const years = Array.from({ length: horizon + 1 }, (_, i) => i);
-  const wpKeys = ['b33', 'a29', 'lwwp'];
-  const foerderung = 15000;
-  const tcoTimeDs = [
-    ...backupKeys.map((k, ki) => ({
-      label: backupNames[k],
-      data: years.map(y => capexBackup[k] + bwwpCapex + y * (extraCost[ki] + wartungBackup[k] + bwwpJahr)),
-      borderColor: COL[k],
-      backgroundColor: COL[k],
-      borderWidth: 2,
-      pointRadius: 0,
-      tension: 0.2,
-    })),
-    ...wpKeys.map(k => ({
-      label: backupNames[k] + ' (mit Förderung)',
-      data: years.map(y => capexBackup[k] + bwwpCapex - foerderung + y * (extraCost[backupKeys.indexOf(k)] + wartungBackup[k] + bwwpJahr)),
-      borderColor: COL[k],
-      backgroundColor: COL[k],
-      borderWidth: 2,
-      borderDash: [6, 4],
-      pointRadius: 0,
-      tension: 0.2,
-    })),
-  ];
+  const tcoTimeDs = backupKeys.map((k, ki) => ({
+    label: backupNames[k],
+    data: years.map(y => tcoAtYear(ki, y, capexBackup[k] - calcFoerderung(k))),
+    borderColor: COL[k],
+    backgroundColor: COL[k],
+    borderWidth: 2,
+    pointRadius: 0,
+    tension: 0.2,
+  }));
 
   if (charts.mbTcoTime) charts.mbTcoTime.destroy();
   charts.mbTcoTime = new Chart(document.getElementById('chart-mb-tco-time'), {
@@ -1791,6 +1985,60 @@ function renderMischbetrieb() {
       }
     }
   });
+
+  // Szenario-Winner in Modell-Tab aktualisieren
+  const tco20 = backupKeys.map((k, ki) => tcoAtYear(ki, horizon, capexBackup[k] - calcFoerderung(k)));
+  let winIdx = 0;
+  for (let i = 1; i < tco20.length; i++) { if (tco20[i] < tco20[winIdx]) winIdx = i; }
+  const winKey = backupKeys[winIdx];
+  const winEl = document.getElementById('scenario-winner');
+  const winText = document.getElementById('scenario-winner-text');
+  const winDetail = document.getElementById('scenario-winner-detail');
+  if (winEl) {
+    const sorted20 = tco20.map((v, i) => ({ v, i })).sort((a, b) => a.v - b.v);
+    const secondIdx2 = sorted20[1].i;
+    const secondKey = backupKeys[secondIdx2];
+    const secondTco = sorted20[1].v;
+    const vorteilEur = secondTco - tco20[winIdx];
+    const vorteilPct = secondTco > 0 ? Math.round((1 - tco20[winIdx] / secondTco) * 100) : 0;
+    const backupAnteil = 100 - P.MB_Anteil_Holz;
+
+    // Jahreskosten und Verbrauch berechnen
+    const jahresGesamt1 = Math.round(tco20[winIdx] / horizon);
+    const jahresGesamt2 = Math.round(secondTco / horizon);
+    const bd1 = costBreakdown[winIdx];
+    const bd2 = costBreakdown[secondIdx2];
+    const jahresEnergie1 = Math.round(bd1.strom + bd1.oel + bd1.holzDiff);
+    const jahresEnergie2 = Math.round(bd2.strom + bd2.oel + bd2.holzDiff);
+    const verbrauch = (ki) => {
+      const k = backupKeys[ki];
+      if (k === 'oel') return fmt0(backupOel[ki]) + ' L Öl';
+      return fmt0(backupStrom[ki]) + ' kWh Strom';
+    };
+
+    // 1. Platz
+    winEl.style.display = '';
+    winEl.style.borderLeft = '3px solid ' + COL[winKey];
+    winText.textContent = backupNames[winKey];
+    winText.style.color = COL[winKey];
+    winDetail.innerHTML = fmt0(tco20[winIdx]) + ' € über 20 Jahre · Backup-Anteil <strong>' + backupAnteil + '%</strong>'
+      + '<br><span style="color:var(--col-ok); font-weight:500;">' + vorteilPct + '% günstiger</span> als ' + backupNames[secondKey]
+      + '<br>Gesamtkosten ' + fmt0(jahresGesamt1) + ' €/a · Energiekosten ' + fmt0(jahresEnergie1) + ' €/a · ' + verbrauch(winIdx)
+      + '<br>Betriebsstunden Backup: ' + fmt0(backupStunden[winIdx]) + ' h/a';
+
+    // 2. Platz
+    const secEl = document.getElementById('scenario-second');
+    const secText = document.getElementById('scenario-second-text');
+    const secDetail = document.getElementById('scenario-second-detail');
+    secEl.style.display = '';
+    secEl.style.borderLeft = '3px solid ' + COL[secondKey];
+    secText.textContent = backupNames[secondKey];
+    secText.style.color = COL[secondKey];
+    secDetail.innerHTML = fmt0(secondTco) + ' € über 20 Jahre · Backup-Anteil <strong>' + backupAnteil + '%</strong>'
+      + '<br><span style="color:var(--text-mute);">+' + fmt0(vorteilEur) + ' € gegenüber ' + backupNames[winKey] + '</span>'
+      + '<br>Gesamtkosten ' + fmt0(jahresGesamt2) + ' €/a · Energiekosten ' + fmt0(jahresEnergie2) + ' €/a · ' + verbrauch(secondIdx2)
+      + '<br>Betriebsstunden Backup: ' + fmt0(backupStunden[secondIdx2]) + ' h/a';
+  }
 
   // Plot 4: Sweep über Holz-Anteile 0/25/50/70/80/90/100% pro Backup-System
   const sweepAnteile = [0, 25, 50, 70, 80, 90, 100];
@@ -2292,6 +2540,38 @@ document.getElementById('ts-system').addEventListener('change', renderTimeseries
 document.getElementById('ts-window').addEventListener('change', renderTimeseries);
 document.getElementById('puf-system').addEventListener('change', renderPuffer);
 
+// Reset
+document.getElementById('btn-reset').addEventListener('click', () => {
+  Object.assign(P, JSON.parse(JSON.stringify(P_DEFAULTS)));
+  // Inputs synchronisieren
+  for (const key of Object.keys(P)) {
+    const el = document.getElementById('i_' + key);
+    if (el) el.value = P[key];
+  }
+  // Checkboxen synchronisieren
+  document.getElementById('we2-toggle').checked = P.WE2_aktiv;
+  document.getElementById('inputs-we2').style.opacity = '1';
+  document.getElementById('ww-modus').value = P.WW_modus;
+  document.getElementById('foerd-grund').checked = P.Foerd_grund;
+  document.getElementById('foerd-klima').checked = P.Foerd_klima;
+  document.getElementById('foerd-effizienz').checked = P.Foerd_effizienz;
+  document.getElementById('infl-toggle').checked = P.Infl_aktiv;
+  document.getElementById('infl-inputs').style.opacity = P.Infl_aktiv ? '1' : '0.4';
+  rerun();
+});
+
+// Förderungs-Checkboxen
+document.getElementById('foerd-grund').addEventListener('change', e => { P.Foerd_grund = e.target.checked; rerun(); });
+document.getElementById('foerd-klima').addEventListener('change', e => { P.Foerd_klima = e.target.checked; rerun(); });
+document.getElementById('foerd-effizienz').addEventListener('change', e => { P.Foerd_effizienz = e.target.checked; rerun(); });
+
+// Inflation-Toggle
+document.getElementById('infl-toggle').addEventListener('change', e => {
+  P.Infl_aktiv = e.target.checked;
+  document.getElementById('infl-inputs').style.opacity = P.Infl_aktiv ? '1' : '0.4';
+  rerun();
+});
+
 // WE2-Toggle
 document.getElementById('we2-toggle').addEventListener('change', e => {
   P.WE2_aktiv = e.target.checked;
@@ -2303,7 +2583,6 @@ document.getElementById('we2-toggle').addEventListener('change', e => {
 document.getElementById('ww-modus').addEventListener('change', e => { P.WW_modus = e.target.value; rerun(); });
 
 // Mischbetrieb-Inputs
-document.getElementById('mb-anteil').addEventListener('input', e => { P.MB_Anteil_Holz = parseFloat(e.target.value) || 0; renderMischbetrieb(); });
 
 // ============================================
 // INIT
