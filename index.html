@@ -200,13 +200,25 @@ Bilanz
     <div class="card" style="margin-top: 16px;">
       <h2>Energiebilanz-Übersicht</h2>
       <div class="meta">Jahressummen für das aktuell gewählte Wetterszenario, alle 5 Erzeuger-Optionen verglichen.</div>
-      <div class="grid grid-2" style="margin-bottom: 16px;">
+      <div class="grid grid-3" style="margin-bottom: 16px;">
         <div class="card" style="background: var(--bg-soft); border: none;">
-          <div class="meta" id="kpi-q-total-label">Wärmebedarf (Heizung + WW + Pufferverluste)</div>
+          <div class="meta" id="kpi-q-total-label">Wärmebedarf gesamt</div>
           <div style="font-size: 28px; font-weight: 500; font-variant-numeric: tabular-nums;" id="kpi-q-total">– kWh/a</div>
         </div>
         <div class="card" style="background: var(--bg-soft); border: none;">
-          <div class="meta">davon Pufferverluste</div>
+          <div class="meta">WE1 Altbau · UA <span id="kpi-ua1">–</span> kW/K</div>
+          <div style="font-size: 28px; font-weight: 500; font-variant-numeric: tabular-nums;" id="kpi-q-we1">– kWh/a</div>
+        </div>
+        <div class="card" style="background: var(--bg-soft); border: none;">
+          <div class="meta">WE2 Neubau · UA <span id="kpi-ua2">–</span> kW/K</div>
+          <div style="font-size: 28px; font-weight: 500; font-variant-numeric: tabular-nums;" id="kpi-q-we2">– kWh/a</div>
+        </div>
+        <div class="card" style="background: var(--bg-soft); border: none;">
+          <div class="meta" id="kpi-q-ww-label">Warmwasser</div>
+          <div style="font-size: 28px; font-weight: 500; font-variant-numeric: tabular-nums;" id="kpi-q-ww">– kWh/a</div>
+        </div>
+        <div class="card" style="background: var(--bg-soft); border: none;">
+          <div class="meta">Pufferverluste</div>
           <div style="font-size: 28px; font-weight: 500; font-variant-numeric: tabular-nums;" id="kpi-q-loss">– kWh/a</div>
         </div>
       </div>
@@ -986,13 +998,35 @@ function setupInputs() {
 // ============================================
 function renderOverview() {
   const r_b33 = STATE.results.b33.kpi;
+  const sumArr = a => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i]; return s; };
+  const Q_we1 = sumArr(STATE.loads.Q_WE1);
+  const Q_we2 = sumArr(STATE.loads.Q_WE2);
+  const Q_ww_puffer = sumArr(STATE.loads.Q_WW);
   const wwTherm = P.WW_modus !== 'aus' ? Math.round(P.WW_kWh_d * 365) : 0;
   const Q_total = r_b33.Q_load + r_b33.Q_loss + (P.WW_modus === 'bwwp' ? wwTherm : 0);
+
+  // UA-Werte
+  const UA1 = P.Q_norm_WE1 / (P.T_soll_tag_WE1 - P.T_Norm);
+  const UA2 = P.Q_norm_WE2 / (P.T_soll_tag_WE2 - P.T_Norm);
+
   document.getElementById('kpi-q-total').textContent = fmt0(Q_total) + ' kWh/a';
+  document.getElementById('kpi-q-we1').textContent = fmt0(Q_we1) + ' kWh/a';
+  document.getElementById('kpi-q-we2').textContent = fmt0(Q_we2) + ' kWh/a';
+  document.getElementById('kpi-ua1').textContent = fmt2(UA1);
+  document.getElementById('kpi-ua2').textContent = fmt2(UA2);
   document.getElementById('kpi-q-loss').textContent = fmt0(r_b33.Q_loss) + ' kWh/a';
-  const qLabel = P.WW_modus === 'friwa' ? 'Wärmebedarf (Heizung + WW + Pufferverluste)'
-    : P.WW_modus === 'bwwp' ? 'Wärmebedarf (Heizung + WW via BWWP + Pufferverluste)'
-    : 'Wärmebedarf (nur Heizung + Pufferverluste · WW deaktiviert)';
+
+  // WW-Anzeige
+  const wwDisplay = P.WW_modus === 'friwa' ? fmt0(Q_ww_puffer) + ' kWh/a'
+    : P.WW_modus === 'bwwp' ? fmt0(wwTherm) + ' kWh/a (BWWP)'
+    : 'deaktiviert';
+  document.getElementById('kpi-q-ww').textContent = wwDisplay;
+  const wwLabel = P.WW_modus === 'bwwp' ? 'Warmwasser (via BWWP)' : 'Warmwasser';
+  document.getElementById('kpi-q-ww-label').textContent = wwLabel;
+
+  const qLabel = P.WW_modus === 'friwa' ? 'Wärmebedarf gesamt (Heizung + WW + Pufferverluste)'
+    : P.WW_modus === 'bwwp' ? 'Wärmebedarf gesamt (Heizung + WW via BWWP + Pufferverluste)'
+    : 'Wärmebedarf gesamt (nur Heizung + Pufferverluste)';
   document.getElementById('kpi-q-total-label').textContent = qLabel;
 
   const c = document.getElementById('overview-cards');
