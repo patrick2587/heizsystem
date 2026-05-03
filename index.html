@@ -413,7 +413,32 @@ Bilanz
       </label>
     </div>
 
-    <div class="card">
+    <div class="card" id="mb-holz-card">
+      <h2>Holzvergaser · Primärsystem</h2>
+      <div class="meta">Betrieb des Holzvergasers bei gewähltem Holz-Anteil. Der Rest wird vom Backup-System übernommen.</div>
+      <div class="kpi-grid" style="max-width: 500px;">
+        <div class="key">Holz-Anteil</div><div class="val" id="mb-holz-anteil">–</div>
+        <div class="key">Betriebsstunden Holz</div><div class="val" id="mb-holz-stunden">–</div>
+        <div class="key">Wärme erzeugt (Holz)</div><div class="val" id="mb-holz-waerme">–</div>
+        <div class="key">Holzverbrauch</div><div class="val" id="mb-holz-rm">–</div>
+        <div class="key">Holzkosten</div><div class="val" id="mb-holz-kosten">–</div>
+      </div>
+    </div>
+
+    <div class="grid grid-2" style="margin-top: 16px;">
+      <div class="card">
+        <h2>Betriebsstunden Backup-System</h2>
+        <div class="meta">Stunden mit Wärmebedarf, in denen das Backup-System statt Holz läuft.</div>
+        <div class="chart-frame tall"><canvas id="chart-mb-hours"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>Primärenergie Backup-System</h2>
+        <div class="meta">Erzeugte Wärme und eingesetzter Energieträger (Strom bzw. Öl) des Backup-Systems.</div>
+        <div class="chart-frame tall"><canvas id="chart-mb-energy"></canvas></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 16px;">
       <h2>Mehrkosten gegenüber 100% Holz</h2>
       <div class="meta">Bei zufallsverteiltem Einsatz von Holz (Anteil) und Backup-System (Rest). Der Differenzbetrag ist der "Komfort-Preis" für Stunden in denen kein Holz nachgelegt werden muss.</div>
       <div class="chart-frame tall"><canvas id="chart-mb-extra"></canvas></div>
@@ -463,7 +488,7 @@ const P = {
   // Klima
   T_mittel: 9.5, T_amp: 11, T_phase: 18, T_tagesgang: 4.5, Kaeltewellen_intensity: 1.0, seed: 42,
   // WE1 Altbau
-  Q_norm_WE1: 22.1, T_Norm: -12, T_HG_WE1: 17, VL_aus_WE1: 65, T_soll_tag_WE1: 21, T_soll_nacht_WE1: 18,
+  Q_norm_WE1: 22.1, T_Norm: -12, T_HG_WE1: 17, VL_aus_WE1: 65, T_soll_tag_WE1: 22, T_soll_nacht_WE1: 18,
   // WE2 Neubau
   Q_norm_WE2: 5.7, T_HG_WE2: 15, VL_aus_WE2: 35, T_soll_tag_WE2: 22, T_soll_nacht_WE2: 19,
   // Warmwasser
@@ -471,7 +496,7 @@ const P = {
   // Brauchwasser-WP
   BWWP_cop: 3.7, BWWP_capex: 3500, BWWP_wartung: 50,
   // Puffer
-  V_Puffer: 4000, T_Umg: 16, k_Verlust: 0.000002, // pro L und K, kWh/(K·h·L) — ~1,5 kWh/d je 1000L bei 30K ΔT
+  V_Puffer: 4000, T_Umg: 18, k_Verlust: 0.000002, // pro L und K, kWh/(K·h·L) — ~1,5 kWh/d je 1000L bei 30K ΔT
   // Strompreis etc
   P_Strom: 0.32, P_Oel: 1.10, HW_Oel: 10, eta_Oel: 0.97,
   P_Holz: 90, HW_Holz: 1600, eta_Holz: 0.92,
@@ -1494,6 +1519,109 @@ function renderMischbetrieb() {
       sum += totalMix - totalSoloHolz;
     }
     return sum / N_SEEDS;
+  });
+
+  // Holzvergaser-Kennzahlen + Betriebsstunden + Energie je Backup — gemittelt über Seeds
+  const rHolz = STATE.results.holz;
+  let holzStunden = 0, holzWaerme = 0, holzRM = 0;
+  const backupStunden = backupKeys.map(() => 0);
+  const backupWaerme = backupKeys.map(() => 0);
+  const backupStrom = backupKeys.map(() => 0);
+  const backupOel = backupKeys.map(() => 0);
+
+  for (const useHolz of useHolzAll) {
+    // Holzvergaser
+    let hSt = 0, hW = 0, hE = 0;
+    for (let i = 0; i < HOURS; i++) {
+      if (useHolz[i] && rHolz.ts.Q_gen[i] > 0.1) {
+        hSt++;
+        hW += rHolz.ts.Q_gen[i];
+        hE += rHolz.ts.e_holz[i];
+      }
+    }
+    holzStunden += hSt;
+    holzWaerme += hW;
+    holzRM += hE / P.HW_Holz;
+
+    // Backup-Systeme
+    backupKeys.forEach((k, ki) => {
+      const rb = STATE.results[k];
+      if (!rb || !rb.ts) return;
+      let bSt = 0, bW = 0, bStrom = 0, bOel = 0;
+      for (let i = 0; i < HOURS; i++) {
+        if (!useHolz[i] && rb.ts.Q_gen[i] > 0.1) {
+          bSt++;
+          bW += rb.ts.Q_gen[i];
+          bStrom += rb.ts.e_strom[i] || 0;
+          bOel += rb.ts.e_oel[i] || 0;
+        }
+      }
+      backupStunden[ki] += bSt;
+      backupWaerme[ki] += bW;
+      backupStrom[ki] += bStrom;
+      backupOel[ki] += bOel;
+    });
+  }
+  holzStunden = Math.round(holzStunden / N_SEEDS);
+  holzWaerme = Math.round(holzWaerme / N_SEEDS);
+  holzRM = holzRM / N_SEEDS;
+  for (let i = 0; i < backupKeys.length; i++) {
+    backupStunden[i] = Math.round(backupStunden[i] / N_SEEDS);
+    backupWaerme[i] = Math.round(backupWaerme[i] / N_SEEDS);
+    backupStrom[i] = Math.round(backupStrom[i] / N_SEEDS);
+    backupOel[i] = Math.round(backupOel[i] / N_SEEDS);
+  }
+
+  // Holzvergaser-Card befüllen
+  document.getElementById('mb-holz-anteil').textContent = P.MB_Anteil_Holz + '%';
+  document.getElementById('mb-holz-stunden').textContent = fmt0(holzStunden) + ' h/a';
+  document.getElementById('mb-holz-waerme').textContent = fmt0(holzWaerme) + ' kWh/a';
+  document.getElementById('mb-holz-rm').textContent = fmt1(holzRM) + ' RM/a';
+  document.getElementById('mb-holz-kosten').textContent = fmt0(Math.round(holzRM * P.P_Holz)) + ' €/a';
+
+  // Chart: Betriebsstunden Backup
+  if (charts.mbHours) charts.mbHours.destroy();
+  charts.mbHours = new Chart(document.getElementById('chart-mb-hours'), {
+    type: 'bar',
+    data: {
+      labels: backupKeys.map(k => backupNames[k]),
+      datasets: [{
+        data: backupStunden,
+        backgroundColor: backupKeys.map(k => COL[k]),
+        borderRadius: 4,
+        barPercentage: 0.65,
+        categoryPercentage: 0.85,
+      }]
+    },
+    options: { ...chartDefaults,
+      plugins: { ...chartDefaults.plugins, tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => fmt0(c.parsed.y) + ' h/a' } } },
+      scales: {
+        y: { beginAtZero: true, grid: grid(), ticks: { ...tickF(), callback: v => fmt0(v) + ' h' }, title: { display: true, text: 'Betriebsstunden Backup', font: { size: 11 } } },
+        x: { grid: { display: false }, ticks: tickF() }
+      }
+    }
+  });
+
+  // Chart: Primärenergie Backup (Wärme erzeugt + Energieträger)
+  const backupOelLiter = backupOel.map(v => Math.round(v));
+  if (charts.mbEnergy) charts.mbEnergy.destroy();
+  charts.mbEnergy = new Chart(document.getElementById('chart-mb-energy'), {
+    type: 'bar',
+    data: {
+      labels: backupKeys.map(k => backupNames[k]),
+      datasets: [
+        { label: 'Wärme erzeugt (kWh)', data: backupWaerme, backgroundColor: backupKeys.map(k => COL[k] + 'AA'), borderRadius: 4 },
+        { label: 'Strom (kWh)', data: backupStrom, backgroundColor: backupKeys.map(k => COL[k]), borderRadius: 4 },
+        { label: 'Heizöl (Liter)', data: backupOelLiter, backgroundColor: COL.oel + '80', borderRadius: 4 },
+      ]
+    },
+    options: { ...chartDefaults,
+      plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 14, boxHeight: 14, padding: 10 } }, tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => { const v = c.parsed.y; if (!v) return null; const lbl = c.dataset.label; return lbl + ': ' + fmt0(v) + (lbl.includes('Liter') ? ' L' : ' kWh'); } } } },
+      scales: {
+        y: { beginAtZero: true, grid: grid(), ticks: { ...tickF(), callback: v => fmt0(v / 1000) + 'k' }, title: { display: true, text: 'kWh / Liter', font: { size: 11 } } },
+        x: { grid: { display: false }, ticks: tickF() }
+      }
+    }
   });
 
   if (charts.mbExtra) charts.mbExtra.destroy();
