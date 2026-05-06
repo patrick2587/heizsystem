@@ -218,7 +218,7 @@ Bilanz
           <p>Die Simulation läuft <strong>stündlich über ein synthetisches Jahr</strong> (8760 Schritte) für Mitteldeutschland. Sie simuliert Außentemperatur, Heizlast für beide Wohneinheiten getrennt, Vorlauftemperatur über die Heizkurve, Pufferdynamik mit drei Schichten und den Erzeuger-Betrieb.</p>
           <p>Im Gegensatz zu einer einfachen SCOP-Schätzung berechnet sie für <strong>jede einzelne Stunde</strong> den COP am aktuellen Betriebspunkt, prüft VL-Limits und schaltet bei Bedarf den Heizstab zu. Daraus ergibt sich der <strong>echte Jahres-SCOP</strong> als Σ Q_WP / Σ E_WP statt einer Datenblatt-Annahme.</p>
           <p><strong>Was modelliert ist:</strong> Klimaprofil mit Tag/Nacht und Kältewellen, getrennte WE1/WE2 mit eigenen UA und Heizkurven (gemeinsame VL-Anforderung), Warmwasserlast mit realistischem Tagesprofil, 3-Schicht-Puffer mit Verlusten, WP-Carnot-Modell mit Gütegrad und VL-Limit, Heizstab-Bivalent, LWWP-Abtauverluste.</p>
-          <p><strong>Warmwasser-Bereitung:</strong> Vier Modi: (1) <em>FriWa Festwert</em> — WP lädt Puffer immer auf T_WW+5°C, gesamte Wärme bei hohem Hub erzeugt. (2) <em>FriWa Schichtladung</em> — Heizanteil wird bei VL der Heizkurve erzeugt (besserer COP), nur WW-Anteil bei 60°C. Der COP wird gewichtet nach Lastanteil berechnet. (3) <em>Brauchwasser-WP</em> — WW komplett entkoppelt, eigene WP mit COP 3,7. (4) <em>Deaktiviert</em>.</p>
+          <p><strong>Warmwasser-Bereitung:</strong> Drei Modi: (1) <em>FriWa</em> — Frischwasserstation am Puffer (Durchlaufprinzip), WW bei 40°C, Puffer min. 45°C. 1× pro Woche Legionellenschutz auf 65°C (2h). (2) <em>Brauchwasser-WP</em> — WW komplett entkoppelt, eigene WP mit COP 3,7. (3) <em>Deaktiviert</em>.</p>
           <p><strong>Was fehlt</strong> (bewusste Vereinfachung): RC-Gebäudemodell (statisches UA reicht für Aussage), echte TMY-Wetterdaten (synthetisch ist deutlich näher an der Realität als Sinus), Inverter-Modulation und Takten (5–10% Effekt auf SCOP), Solargewinne, interne Lasten.</p>
           <p>Mehr: <a href="https://www.dwd.de/DE/leistungen/testreferenzjahre/testreferenzjahre.html" target="_blank">DWD Testreferenzjahre</a> · <a href="https://www.vdi.de/richtlinien/details/vdi-4655-referenzlastprofile-von-wohngebaeuden-fuer-strom-heizung-und-trinkwarmwasser-sowie-referenzerzeugungsprofile-fuer-fotovoltaikanlagen" target="_blank">VDI 4655 Lastprofile</a></p>
         </div>
@@ -264,8 +264,7 @@ Bilanz
           <label style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
             WW-Bereitung:
             <select id="ww-modus" style="height: 30px; padding: 0 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card); font-size: 12px; font-family: inherit; color: var(--text);">
-              <option value="friwa">FriWa · Festwert-Ladung</option>
-              <option value="friwa-schicht">FriWa · Schichtladung</option>
+              <option value="friwa">Frischwasserstation (FriWa)</option>
               <option value="bwwp">Brauchwasser-Wärmepumpe</option>
               <option value="aus">Deaktiviert</option>
             </select>
@@ -331,8 +330,31 @@ Bilanz
       </div>
       <div class="card">
         <h2>Mischbetrieb</h2>
-        <div class="meta">Anteil Holzvergaser vs. Backup-System. Rest wird vom günstigsten Backup übernommen.</div>
+        <div class="meta">Holzvergaser + Backup-System. Modus und Holz-Anteil bestimmen die Allokation.</div>
+        <div style="margin-bottom: 8px;">
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
+            Betriebsmodus:
+            <select style="height: 30px; padding: 0 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card); font-size: 12px; font-family: inherit; color: var(--text);">
+              <option value="alternierend" selected>Alternierend (tageweise)</option>
+              <option value="parallel" disabled style="color: var(--text-mute);">Parallel (COP-gesteuert) — in Arbeit</option>
+            </select>
+          </label>
+        </div>
         <div id="inputs-mischbetrieb"></div>
+        <div style="opacity: 0.35; pointer-events: none; margin-top: 4px;">
+          <div class="input-group"><label>COP-Schwelle (Parallel) <span class="name">MB_COP_min</span></label><input type="number" value="2.5" step="0.1" disabled><span class="unit">–</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>PV-Anlage</h2>
+        <div class="meta">Eigenverbrauch reduziert WP-Stromkosten. Noch nicht in Simulation integriert.</div>
+        <div style="opacity: 0.35; pointer-events: none;">
+          <div class="input-group"><label>PV Nennleistung <span class="name">PV_kWp</span></label><input type="number" value="10" step="1" disabled><span class="unit">kWp</span></div>
+          <div class="input-group"><label>Batteriespeicher <span class="name">PV_Batt_kWh</span></label><input type="number" value="20" step="1" disabled><span class="unit">kWh</span></div>
+          <div class="input-group"><label>Eigenverbrauchsanteil <span class="name">PV_Eigen_pct</span></label><input type="number" value="35" step="5" disabled><span class="unit">%</span></div>
+          <div class="input-group"><label>Einspeisevergütung <span class="name">PV_Einspeise</span></label><input type="number" value="0.08" step="0.01" disabled><span class="unit">€/kWh</span></div>
+          <div class="input-group"><label>PV-Anlage Kosten <span class="name">PV_capex</span></label><input type="number" value="18000" step="1000" disabled><span class="unit">€</span></div>
+        </div>
       </div>
     </div>
   </section>
@@ -388,6 +410,18 @@ Bilanz
       <h2>Effizienz-KPIs der Wärmepumpen</h2>
       <div class="meta">SCOP berechnet aus Σ Q_WP / Σ E_WP — mit echtem Jahresprofil, nicht Datenblatt-Schätzung</div>
       <div class="chart-frame"><canvas id="chart-scop"></canvas></div>
+    </div>
+    <div class="grid grid-2" style="margin-top: 16px;">
+      <div class="card">
+        <h2>Betriebsstunden pro Jahr</h2>
+        <div class="meta">Stunden in denen der Erzeuger aktiv Wärme liefert (Q_gen > 0).</div>
+        <div class="chart-frame"><canvas id="chart-betriebsstunden"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>An/Aus-Zyklen pro Jahr</h2>
+        <div class="meta">Jeder Start = ein Zyklus. WP mit Inverter-Modulation takten deutlich weniger. Holzvergaser: jeder Zyklus = Nachlegen + Anfeuern.</div>
+        <div class="chart-frame"><canvas id="chart-zyklen"></canvas></div>
+      </div>
     </div>
   </section>
 
@@ -558,9 +592,9 @@ Bilanz
 
     <div class="card desc" style="margin-top: 16px;">
       <h2>Modellannahmen</h2>
-      <p><strong>Allokation:</strong> Für jede Stunde des Jahres wird per Zufall (gleichverteilt mit gegebenem Seed) entschieden, ob Holz primär oder das Backup-System läuft. Bei Holz-Anteil 80% läuft also in ~80% der Heizstunden Holz, in ~20% das Backup. Über 8760 Stunden ist die statistische Streuung gering (&lt;1%).</p>
-      <p><strong>Mehrkosten = Komfort-Preis:</strong> Wenn das Backup-System aktiv ist, muss nicht nachgelegt werden, der Holzvorrat reicht länger. Die Differenz Mischbetrieb minus Solo-Holz ist genau der Betrag, der für diese Bequemlichkeit gezahlt wird. Bei Holz-Anteil 0% läuft nur das Backup-System — die Mehrkosten sind dann maximal und entsprechen der Differenz Solo-Backup minus Solo-Holz.</p>
-      <p><strong>Was nicht modelliert ist:</strong> Smarte Steuerung (z.B. Backup nur an milden Tagen wenn der COP hoch ist, Holz an kalten Tagen wenn der COP niedrig ist) würde die Mehrkosten deutlich reduzieren. Das hier ist die Worst-Case-Annahme bei zufälliger Allokation. Eine optimierte Strategie könnte die Mehrkosten halbieren.</p>
+      <p><strong>Mischbetrieb-Modus: Alternierend.</strong> Für jeden Tag des Jahres wird per Zufall entschieden, ob Holz oder das Backup-System läuft — ganztägig. Bei Holz-Anteil 90% läuft an ~329 Tagen Holz, an ~36 Tagen das Backup. Gemittelt über 5 Seeds für stabile Ergebnisse. Die Tage sind zufällig verteilt — keine Optimierung nach Wetter oder COP.</p>
+      <p><strong>Mehrkosten = Komfort-Preis:</strong> Wenn das Backup-System aktiv ist, muss nicht nachgelegt werden, der Holzvorrat reicht länger. Die Differenz Mischbetrieb minus Solo-Holz ist genau der Betrag, der für diese Bequemlichkeit gezahlt wird.</p>
+      <p><strong>Nicht modelliert: Paralleler Mischbetrieb.</strong> Dabei läuft die WP dauerhaft auf Grundlast (moduliert) und Holz wird nur an kalten Tagen dazugefeuert — gezielt wenn der COP schlecht ist. Diese Strategie wäre energetisch optimal: WP produziert an milden Tagen mit COP 4–5, Holz übernimmt nur bei COP &lt; 2,5 (~30–60 Tage/Jahr). Die Mehrkosten gegenüber Solo-Holz wären deutlich geringer als bei der alternierenden Variante, da die WP nie im ungünstigen Betriebspunkt läuft. Der Holz-Anteil ergibt sich dabei als Ergebnis der COP-Schwelle, nicht als Eingabe.</p>
     </div>
   </section>
 
@@ -580,7 +614,11 @@ const P = {
   // WE2 Neubau
   Q_norm_WE2: 5.7, T_HG_WE2: 15, VL_aus_WE2: 35, T_soll_tag_WE2: 22, T_soll_nacht_WE2: 19, WE2_aktiv: true,
   // Warmwasser
-  WW_kWh_d: 9.6, T_WW: 55, T_WW_offset: 5, WW_modus: 'friwa', // 6P · ~40L/P · ΔT 35K (12→47°C)
+  WW_kWh_d: 9.6, T_WW: 40, T_WW_offset: 5, WW_modus: 'friwa', // 6P · ~40L/P · ΔT 28K (12→40°C)
+  // Legionellenschutz: 1× pro Woche Puffer auf 65°C aufheizen
+  T_Legionellen: 65, Legionellen_h: 2, // Aufheizdauer in Stunden
+  // FriWa-Gerät
+  FriWa_capex: 2500, // PAW FriWaMini Premium o.ä., inkl. Installation
   // Brauchwasser-WP
   BWWP_cop: 3.7, BWWP_capex: 3500, BWWP_wartung: 50,
   // Puffer
@@ -794,17 +832,24 @@ function buildLoads(T_aus) {
 
     Q_WE1[h] = ta < P.T_HG_WE1 ? UA1 * Math.max(0, tsoll1 - ta) : 0;
     Q_WE2[h] = P.WE2_aktiv && ta < P.T_HG_WE2 ? UA2 * Math.max(0, tsoll2 - ta) : 0;
-    // FriWa (beide Varianten): WW-Last geht in den Puffer
+    // FriWa: WW-Last geht in den Puffer, VL muss T_WW+offset sein
+    // 1× pro Woche (Montag 2–4 Uhr): Legionellenschutz auf T_Legionellen
     // BWWP: WW separat, Puffer nur für Heizung
     // aus: kein WW
-    const isFriWaAny = P.WW_modus === 'friwa' || P.WW_modus === 'friwa-schicht';
-    Q_WW[h] = isFriWaAny ? WW_profile(h) : 0;
+    const isFriWa = P.WW_modus === 'friwa';
+    Q_WW[h] = isFriWa ? WW_profile(h) : 0;
 
     const vl1 = ta < P.T_HG_WE1 ? VL_kurve(ta, P.T_HG_WE1, P.T_Norm, tsoll1, P.VL_aus_WE1) : 0;
     const vl2 = P.WE2_aktiv && ta < P.T_HG_WE2 ? VL_kurve(ta, P.T_HG_WE2, P.T_Norm, tsoll2, P.VL_aus_WE2) : 0;
     const vlHeiz = Math.max(vl1, vl2);
-    // Beide FriWa-Modi: Puffer muss 60°C oben haben. Unterschied nur im COP (simulate).
-    VL_soll[h] = isFriWaAny ? Math.max(vlHeiz, T_VL_WW) : vlHeiz;
+    if (isFriWa) {
+      // Legionellenschutz: Montag 2–4 Uhr (alle 168h, Stunde 2+3)
+      const weekHour = h % 168;
+      const isLegionellen = weekHour >= 2 && weekHour < 2 + P.Legionellen_h;
+      VL_soll[h] = isLegionellen ? Math.max(vlHeiz, P.T_Legionellen) : Math.max(vlHeiz, T_VL_WW);
+    } else {
+      VL_soll[h] = vlHeiz;
+    }
   }
   return { Q_WE1, Q_WE2, Q_WW, VL_soll };
 }
@@ -837,8 +882,10 @@ function simulate(sysKey, T_aus, loads) {
     undersupply: new Uint8Array(N), // 1 wenn T_top < VL_soll
   };
 
-  // Erzeuger-Hysterese
+  // Erzeuger-Hysterese + Taktung
   let gen_running = false;
+  let prev_gen = false;
+  let cycles = 0; // An/Aus-Zyklen
 
   for (let h = 0; h < N; h++) {
     const T_a = T_aus[h];
@@ -881,7 +928,7 @@ function simulate(sysKey, T_aus, loads) {
     // Q_gen ≈ Q_demand + minimale Puffernachladung. Brenner takten in der Realität sub-stündlich;
     // wir approximieren das durch eine bedarfsproportionale Leistung mit kleinem Aufschlag.
     const T_max_buf = 75;
-    const isFriWaAny_sim = P.WW_modus === 'friwa' || P.WW_modus === 'friwa-schicht';
+    const isFriWaAny_sim = P.WW_modus === 'friwa';
     const T_min_buf = isFriWaAny_sim ? Math.max(VL + 2, P.T_WW + P.T_WW_offset) : VL + 2;
 
     if (T_max_buf > T_min_buf) {
@@ -930,55 +977,48 @@ function simulate(sysKey, T_aus, loads) {
         e_holz_h = Q / P.eta_Holz;
         cop_h = P.eta_Holz;
       } else {
-        // Wärmepumpe (lwwp/a29/b33)
+        // Wärmepumpe (lwwp/a29/b33) — Inverter-Modulation
         const wp = WP[sysKey];
         const T_q = wp.quelle === 'sole' ? T_sole_kusuda(h) : T_a;
-        const VL_real = Math.min(VL, wp.vlMax); // WP läuft auf Limit
+        const VL_real = Math.min(VL, wp.vlMax);
         let cop = copCarnot(VL_real, T_q, wp.eta);
-        // Abtauverluste LWWP: bei 0–7°C und hoher Feuchte vereist der Verdampfer
         if (wp.quelle === 'luft' && T_a >= -2 && T_a <= 7) {
-          cop *= 0.93; // ~7% COP-Einbuße durch Abtauzyklen
-        }
-        // Schichtladung: Heizanteil bei VL_heiz (besser COP), nur WW bei 60°C
-        if (P.WW_modus === 'friwa-schicht' && Q_demand > 0) {
-          const Q_heiz_h = loads.Q_WE1[h] + loads.Q_WE2[h];
-          const Q_ww_h = loads.Q_WW[h];
-          if (Q_heiz_h > 0 && Q_ww_h > 0) {
-            const vlHeiz = Math.max(
-              T_a < P.T_HG_WE1 ? VL_kurve(T_a, P.T_HG_WE1, P.T_Norm, T_soll_we(h, P.T_soll_tag_WE1, P.T_soll_nacht_WE1), P.VL_aus_WE1) : 0,
-              P.WE2_aktiv && T_a < P.T_HG_WE2 ? VL_kurve(T_a, P.T_HG_WE2, P.T_Norm, T_soll_we(h, P.T_soll_tag_WE2, P.T_soll_nacht_WE2), P.VL_aus_WE2) : 0
-            );
-            if (vlHeiz > 0 && vlHeiz < VL_real) {
-              const vlHeizReal = Math.min(vlHeiz, wp.vlMax);
-              const copHeiz = copCarnot(vlHeizReal, T_q, wp.eta);
-              const copWW = cop; // cop ist bereits bei VL_real (60°C) berechnet
-              // Gewichteter COP nach Lastanteil
-              const fHeiz = Q_heiz_h / Q_demand;
-              const fWW = Q_ww_h / Q_demand;
-              cop = 1 / (fHeiz / copHeiz + fWW / copWW);
-            }
-          }
+          cop *= 0.93; // Abtauverluste LWWP
         }
         const kW_wp_max = WP_kWmax(sysKey, T_a, VL_real);
-        const Q_wp = Math.min(kW_wp_max, headroom);
-        Q_wp_h = Q_wp;
-        e_strom_h += Q_wp / cop;
+        const kW_wp_min = kW_wp_max * 0.3; // Inverter-Minimum ~30%
+
+        // Modulierte Leistung: deckt Q_target direkt, geclampt auf [kW_min, kW_max]
+        let Q_wp_target = Math.min(Q_target, headroom);
+        if (Q_wp_target > 0 && Q_wp_target < kW_wp_min) {
+          // Unter Modulationsgrenze: WP taktet — liefert kW_min oder 0
+          // Vereinfachung: anteilige Laufzeit innerhalb der Stunde
+          Q_wp_target = kW_wp_min;
+        }
+        const Q_wp_actual = Math.min(Q_wp_target, kW_wp_max, headroom);
+
+        // Teillast-COP-Bonus: bei Modulation unter 60% Nennlast ~5% besserer COP
+        const loadFrac = kW_wp_max > 0 ? Q_wp_actual / kW_wp_max : 1;
+        if (loadFrac < 0.6 && loadFrac > 0) {
+          cop *= 1.05; // Teillast-Bonus
+        }
+
+        Q_wp_h = Q_wp_actual;
+        e_strom_h += Q_wp_actual / cop;
         cop_h = cop;
 
         if (VL > wp.vlMax) {
-          // Bivalent: Heizstab schießt nach für die Temperaturanhebung
           const T_RL = Math.max(P.T_Umg, VL - 10);
           const stab_frac = Math.max(0, Math.min(1, (VL - wp.vlMax) / (VL - T_RL)));
-          // Stab proportional zum Q_target, nicht zur Last
           const Q_stab = Math.min(P.Stab_kW, stab_frac * Q_target);
           Q_stab_h = Q_stab;
           e_strom_h += Q_stab;
           ts.bivalent[h] = 1;
-          if (Q_wp > 0 && Q_stab > 0) {
-            cop_h = (Q_wp + Q_stab) / (Q_wp / cop + Q_stab);
+          if (Q_wp_actual > 0 && Q_stab > 0) {
+            cop_h = (Q_wp_actual + Q_stab) / (Q_wp_actual / cop + Q_stab);
           }
         }
-        Q_gen_h = Q_wp + Q_stab_h;
+        Q_gen_h = Q_wp_actual + Q_stab_h;
       }
 
       // 5) Erzeugungsenergie in oberste Schicht
@@ -997,6 +1037,11 @@ function simulate(sysKey, T_aus, loads) {
         T_mid += mix * 0.5;
       }
     }
+
+    // Taktung zählen: Übergang von aus→an
+    const cur_gen = Q_gen_h > 0.1;
+    if (cur_gen && !prev_gen) cycles++;
+    prev_gen = cur_gen;
 
     ts.Q_gen[h] = Q_gen_h;
     ts.Q_wp[h] = Q_wp_h;
@@ -1034,7 +1079,8 @@ function simulate(sysKey, T_aus, loads) {
       scop: scop_clean, bivalent_h, undersupply_h,
       bivalent_pct: Q_wp_sum + Q_stab_sum > 0 ? Q_stab_sum / (Q_wp_sum + Q_stab_sum) : 0,
       coverage: 1 - undersupply_h / HOURS,
-      // Debug: Energiebilanz-Quotient. Sollte ~1 sein. <1 = Erzeuger zu schwach. >1 = überproduziert.
+      cycles,
+      betriebsstunden: ts.Q_gen.reduce((s, v) => s + (v > 0.1 ? 1 : 0), 0),
       gen_load_ratio: Q_load_sum > 0 ? Q_gen_sum / (Q_load_sum + Q_loss_sum) : 0,
     },
   };
@@ -1175,7 +1221,7 @@ function renderOverview() {
   const pill = (label, active, detail) => `<span class="pill ${active ? 'ok' : ''}" style="${active ? '' : 'background: rgba(142,140,132,0.12); color: var(--text-mute);'}">${label}${detail ? ': ' + detail : ''}</span>`;
   pills.push(pill('WE1 Altbau', true, fmt1(P.Q_norm_WE1) + ' kW'));
   pills.push(pill('WE2 Neubau', P.WE2_aktiv, P.WE2_aktiv ? fmt1(P.Q_norm_WE2) + ' kW' : 'aus'));
-  const wwLabels = { friwa: 'FriWa Festwert', 'friwa-schicht': 'FriWa Schichtladung', bwwp: 'BWWP', aus: 'aus' };
+  const wwLabels = { friwa: 'FriWa', bwwp: 'BWWP', aus: 'aus' };
   pills.push(pill('Warmwasser', P.WW_modus !== 'aus', wwLabels[P.WW_modus]));
   const foerdPct = calcFoerdPct();
   pills.push(pill('Förderung', foerdPct > 0, foerdPct > 0 ? foerdPct + '%' : 'aus'));
@@ -1204,7 +1250,7 @@ function renderOverview() {
   document.getElementById('kpi-q-loss').textContent = fmt0(r_b33.Q_loss) + ' kWh/a';
 
   // WW-Anzeige
-  const isFriWaAny_r = P.WW_modus === 'friwa' || P.WW_modus === 'friwa-schicht';
+  const isFriWaAny_r = P.WW_modus === 'friwa';
   const wwDisplay = isFriWaAny_r ? fmt0(Q_ww_puffer) + ' kWh/a'
     : P.WW_modus === 'bwwp' ? fmt0(wwTherm) + ' kWh/a (BWWP)'
     : 'deaktiviert';
@@ -1277,22 +1323,39 @@ function renderOverview() {
       </div>`;
   }
 
-  // BWWP-Card immer anzeigen
+  // WW-System Cards
   const isBWWP = P.WW_modus === 'bwwp';
-  const isFriWa = P.WW_modus === 'friwa' || P.WW_modus === 'friwa-schicht';
+  const isFriWa = P.WW_modus === 'friwa';
   const wwJahr = Math.round(P.WW_kWh_d * 365);
   const bwwpStrom = isBWWP ? Math.round(wwJahr / P.BWWP_cop) : 0;
   const bwwpKosten = isBWWP ? Math.round(bwwpStrom * P.P_Strom + P.BWWP_wartung) : 0;
-  const bwwpStatus = isBWWP
-    ? '<span class="pill ok">Aktiv</span>'
-    : '<span class="pill" style="background: rgba(142,140,132,0.12); color: var(--text-mute);">Inaktiv</span>';
+  const pillAktiv = '<span class="pill ok">Aktiv</span>';
+  const pillInaktiv = '<span class="pill" style="background: rgba(142,140,132,0.12); color: var(--text-mute);">Inaktiv</span>';
+  const wwIcon = '<svg viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M 7 5 L 7 12 L 17 12 L 17 9"/><path d="M 14 9 L 20 9"/><path d="M 7 12 L 7 16 Q 7 19 10 19 L 12 19"/><path d="M 12 16 L 12 22"/></g></svg>';
 
+  // FriWa Card
+  c.innerHTML += `
+    <div class="system-card" style="border-left: 3px solid var(--col-vl); ${isFriWa ? '' : 'opacity: 0.5;'}">
+      <span class="card-icon" style="color: var(--col-vl);">${wwIcon}</span>
+      <h3>PAW FriWaMini Premium</h3>
+      <div class="card-sub">Frischwasserstation · Durchlaufprinzip · Legionellenschutz 1×/Woche</div>
+      <div class="system-meta">${isFriWa ? pillAktiv : pillInaktiv}</div>
+      <div class="kpi-grid">
+        <div class="key">WW-Solltemp.</div><div class="val">${P.T_WW}°C</div>
+        <div class="key">VL-Minimum</div><div class="val">${P.T_WW + P.T_WW_offset}°C</div>
+        <div class="key">Legionellen</div><div class="val">${P.T_Legionellen}°C · 1×/Woche</div>
+        <div class="key">WW-Bedarf</div><div class="val">${fmt0(wwJahr)} kWh/a</div>
+        <div class="key">Anschaffung</div><div class="val">${fmt0(P.FriWa_capex)} €</div>
+      </div>
+    </div>`;
+
+  // BWWP Card
   c.innerHTML += `
     <div class="system-card" style="border-left: 3px solid var(--col-stab); ${isBWWP ? '' : 'opacity: 0.5;'}">
-      <span class="card-icon" style="color: var(--col-stab);"><svg viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M 7 5 L 7 12 L 17 12 L 17 9"/><path d="M 14 9 L 20 9"/><path d="M 7 12 L 7 16 Q 7 19 10 19 L 12 19"/><path d="M 12 16 L 12 22"/></g></svg></span>
+      <span class="card-icon" style="color: var(--col-stab);">${wwIcon}</span>
       <h3>Stiebel Eltron WWK 300 electronic</h3>
       <div class="card-sub">Brauchwasser-WP · 300 L · COP ${fmt1(P.BWWP_cop)} · entkoppelt vom Heizpuffer</div>
-      <div class="system-meta">${bwwpStatus}</div>
+      <div class="system-meta">${isBWWP ? pillAktiv : pillInaktiv}</div>
       <div class="kpi-grid">
         <div class="key">WW-Bedarf</div><div class="val">${fmt0(wwJahr)} kWh/a</div>
         <div class="key">COP</div><div class="val">${fmt1(P.BWWP_cop)}</div>
@@ -1305,8 +1368,7 @@ function renderOverview() {
 
   // WW-KPIs aktualisieren
   const metaTexts = {
-    friwa: 'FriWa mit Festwert-Ladung. Puffer wird immer auf ' + (P.T_WW + P.T_WW_offset) + '°C geladen — auch wenn die Heizkurve weniger fordert. Einfach, aber COP-Nachteil in der Übergangszeit.',
-    'friwa-schicht': 'FriWa mit Schichtladung. Heizanteil wird bei VL der Heizkurve erzeugt (besserer COP), nur der WW-Anteil bei ' + (P.T_WW + P.T_WW_offset) + '°C. Spart 10–15% Strom in der Übergangszeit.',
+    friwa: 'Frischwasserstation (Durchlaufprinzip) am Puffer. WW-Solltemp. ' + P.T_WW + '°C, Puffer min. ' + (P.T_WW + P.T_WW_offset) + '°C. Legionellenschutz 1×/Woche auf ' + P.T_Legionellen + '°C.',
     bwwp: 'Separate Brauchwasser-WP (300L Speicher, COP ' + fmt1(P.BWWP_cop) + '). WW entkoppelt vom Hauptpuffer — Heizungs-WP kann im Sommer mit niedrigerer VL laufen.',
     aus: 'Warmwasser ist deaktiviert — nur Heizlast wird simuliert.',
   };
@@ -1610,6 +1672,38 @@ function renderResults() {
       }
     }
   });
+
+  // Betriebsstunden + Zyklen
+  const allKeys = ['b33', 'a29', 'lwwp', 'holz', 'oel'];
+  const allNames = ['SWWP B33', 'SWWP A29', 'LWWP', 'Holzvergaser', 'Ölkessel'];
+  const bsData = allKeys.map(k => STATE.results[k].kpi.betriebsstunden);
+  const zykData = allKeys.map(k => STATE.results[k].kpi.cycles);
+
+  if (charts.betriebsstunden) charts.betriebsstunden.destroy();
+  charts.betriebsstunden = new Chart(document.getElementById('chart-betriebsstunden'), {
+    type: 'bar',
+    data: { labels: allNames, datasets: [{ data: bsData, backgroundColor: allKeys.map(k => COL[k]), borderRadius: 4, barPercentage: 0.6 }] },
+    options: { ...chartDefaults,
+      plugins: { ...chartDefaults.plugins, tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => fmt0(c.parsed.y) + ' h/a' } } },
+      scales: {
+        y: { beginAtZero: true, grid: grid(), ticks: { ...tickF(), callback: v => fmt0(v) + ' h' } },
+        x: { grid: { display: false }, ticks: tickF() }
+      }
+    }
+  });
+
+  if (charts.zyklen) charts.zyklen.destroy();
+  charts.zyklen = new Chart(document.getElementById('chart-zyklen'), {
+    type: 'bar',
+    data: { labels: allNames, datasets: [{ data: zykData, backgroundColor: allKeys.map(k => COL[k]), borderRadius: 4, barPercentage: 0.6 }] },
+    options: { ...chartDefaults,
+      plugins: { ...chartDefaults.plugins, tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => fmt0(c.parsed.y) + ' Zyklen/a' + (c.dataIndex === 3 ? ' (= Nachlege-Vorgänge)' : '') } } },
+      scales: {
+        y: { beginAtZero: true, grid: grid(), ticks: { ...tickF(), callback: v => fmt0(v) } },
+        x: { grid: { display: false }, ticks: tickF() }
+      }
+    }
+  });
 }
 
 // ============================================
@@ -1659,11 +1753,14 @@ function renderMischbetrieb() {
   const MB_SEEDS = [42, 137, 271, 419, 563];
   const N_SEEDS = MB_SEEDS.length;
 
-  // Erzeuge useHolz-Arrays für alle Seeds
+  // Erzeuge useHolz-Arrays für alle Seeds — tageweise Allokation (realistischer als stündlich)
   const useHolzAll = MB_SEEDS.map(seed => {
     const rng = mulberry32(seed);
     const arr = new Uint8Array(HOURS);
-    for (let i = 0; i < HOURS; i++) arr[i] = rng() < anteilHolz ? 1 : 0;
+    for (let d = 0; d < 365; d++) {
+      const holzTag = rng() < anteilHolz ? 1 : 0;
+      for (let h = 0; h < 24; h++) arr[d * 24 + h] = holzTag;
+    }
     return arr;
   });
 
@@ -1889,7 +1986,8 @@ function renderMischbetrieb() {
   const capexBackup = CAPEX;
   // BWWP-Kosten: CAPEX einmal auf alle Systeme, Jahreskosten (Strom+Wartung) auf jedes
   const bwwpActive = P.WW_modus === 'bwwp';
-  const bwwpCapex = bwwpActive ? P.BWWP_capex : 0;
+  const friwaActive = P.WW_modus === 'friwa';
+  const wwCapex = bwwpActive ? P.BWWP_capex : friwaActive ? P.FriWa_capex : 0;
   const bwwpJahr = bwwpActive ? Math.round((P.WW_kWh_d * 365) / P.BWWP_cop) * P.P_Strom + P.BWWP_wartung : 0;
   const wartungBackup = { b33: P.W_b33, a29: P.W_a29, lwwp: P.W_lwwp, oel: P.W_oel };
   const horizon = 20;
@@ -1927,7 +2025,7 @@ function renderMischbetrieb() {
 
   function tcoAtYear(ki, y, capexOffset) {
     const bd = costBreakdown[ki];
-    let cum = capexOffset + bwwpCapex;
+    let cum = capexOffset + wwCapex;
     for (let j = 0; j < y; j++) {
       const fStrom = Math.pow(1 + iStrom, j);
       const fOel = Math.pow(1 + iOel, j);
@@ -1945,9 +2043,9 @@ function renderMischbetrieb() {
     data: {
       labels: backupKeys.map(k => backupNames[k]),
       datasets: [
-        ...(bwwpActive ? [{ label: 'BWWP (Anschaffung + 20 J Betrieb)', data: backupKeys.map(() => Math.round(bwwpCapex + horizon * bwwpJahr)), backgroundColor: '#ccc', borderRadius: 4, stack: 'tco' }] : []),
+        ...(wwCapex > 0 ? [{ label: (bwwpActive ? 'BWWP' : 'FriWa') + ' (Anschaffung' + (bwwpJahr > 0 ? ' + 20 J Betrieb' : '') + ')', data: backupKeys.map(() => Math.round(wwCapex + horizon * bwwpJahr)), backgroundColor: '#ccc', borderRadius: 4, stack: 'tco' }] : []),
         { label: 'Anschaffung' + (P.Foerd_aktiv ? ' (nach Förderung)' : ''), data: backupKeys.map(k => capexBackup[k] - calcFoerderung(k)), backgroundColor: backupKeys.map(k => COL[k] + 'AA'), borderRadius: 4, stack: 'tco' },
-        { label: '20 J Mehrkosten', data: backupKeys.map((k, ki) => tcoAtYear(ki, horizon, 0) - bwwpCapex - horizon * (wartungBackup[k] + bwwpJahr)), backgroundColor: backupKeys.map(k => COL[k]), borderRadius: 4, stack: 'tco' },
+        { label: '20 J Mehrkosten', data: backupKeys.map((k, ki) => tcoAtYear(ki, horizon, 0) - wwCapex - horizon * (wartungBackup[k] + bwwpJahr)), backgroundColor: backupKeys.map(k => COL[k]), borderRadius: 4, stack: 'tco' },
         { label: '20 J Wartung', data: backupKeys.map(k => Math.round(horizon * wartungBackup[k])), backgroundColor: backupKeys.map(k => COL[k] + '55'), borderRadius: 4, stack: 'tco' },
       ]
     },
@@ -2051,9 +2149,13 @@ function renderMischbetrieb() {
       for (const seed of MB_SEEDS) {
         const rng2 = mulberry32(seed);
         let totalMix = 0;
-        for (let i = 0; i < HOURS; i++) {
-          const useH = rng2() < a;
-          totalMix += useH ? cost_solo_h[i] : rb.ts.cost[i];
+        for (let d = 0; d < 365; d++) {
+          const holzTag = rng2() < a;
+          for (let h = 0; h < 24; h++) {
+            const i = d * 24 + h;
+            if (i >= HOURS) break;
+            totalMix += holzTag ? cost_solo_h[i] : rb.ts.cost[i];
+          }
         }
         sum += totalMix - totalSoloHolz;
       }
