@@ -823,6 +823,7 @@ function buildLoads(T_aus) {
   const Q_WE2 = new Float32Array(HOURS);
   const Q_WW = new Float32Array(HOURS);
   const VL_soll = new Float32Array(HOURS);
+  const legionellen = new Uint8Array(HOURS); // 1 = Legionellenprogramm aktiv
   const T_VL_WW = P.T_WW + P.T_WW_offset; // FriWa braucht Puffer-Oben mindestens T_WW + Offset
 
   for (let h = 0; h < HOURS; h++) {
@@ -845,13 +846,14 @@ function buildLoads(T_aus) {
     if (isFriWa) {
       // Legionellenschutz: Montag 2–4 Uhr (alle 168h, Stunde 2+3)
       const weekHour = h % 168;
-      const isLegionellen = weekHour >= 2 && weekHour < 2 + P.Legionellen_h;
-      VL_soll[h] = isLegionellen ? Math.max(vlHeiz, P.T_Legionellen) : Math.max(vlHeiz, T_VL_WW);
+      const isLeg = weekHour >= 2 && weekHour < 2 + P.Legionellen_h;
+      legionellen[h] = isLeg ? 1 : 0;
+      VL_soll[h] = isLeg ? Math.max(vlHeiz, P.T_Legionellen) : Math.max(vlHeiz, T_VL_WW);
     } else {
       VL_soll[h] = vlHeiz;
     }
   }
-  return { Q_WE1, Q_WE2, Q_WW, VL_soll };
+  return { Q_WE1, Q_WE2, Q_WW, VL_soll, legionellen };
 }
 
 // ============================================
@@ -931,22 +933,30 @@ function simulate(sysKey, T_aus, loads) {
     const isFriWaAny_sim = P.WW_modus === 'friwa';
     const T_min_buf = isFriWaAny_sim ? Math.max(VL + 2, P.T_WW + P.T_WW_offset) : VL + 2;
 
-    if (T_max_buf > T_min_buf) {
-      // Hysterese: Erzeuger an wenn Pufferspitze unter VL+5, aus wenn deutlich darüber
+    // Legionellenprogramm überschreibt normale Steuerung
+    const isLegProgramm = loads.legionellen && loads.legionellen[h] && T_top < VL;
+
+    if (isLegProgramm) {
+      // Legionellenprogramm: Erzeuger auf Volllast bis T_top >= T_Legionellen
+      gen_running = true;
+    } else if (T_max_buf > T_min_buf) {
+      // Normale Hysterese
       if (!gen_running && T_top < VL + 3) gen_running = true;
       if (gen_running && T_top > VL + 12) gen_running = false;
     }
 
-    // Soll-Leistung in dieser Stunde: deckt aktuelle Last + nur soviel Puffer-Recharge
-    // wie nötig damit T_top wieder Richtung VL+10 läuft
+    // Soll-Leistung
     let Q_target = 0;
     if (gen_running) {
-      // Anteil der aktuellen Last muss erzeugt werden
-      Q_target = Q_demand;
-      // Plus: kleiner Recharge wenn T_top deutlich unter Soll
-      if (T_top < VL + 8) {
-        const deficit = (VL + 10 - T_top) * C_layer;
-        Q_target += Math.min(5, deficit / 2); // max 5 kW Nachladung, gestreckt auf 2h
+      if (isLegProgramm) {
+        // Legionellen: Volllast — Puffer schnell auf 65°C bringen
+        Q_target = 999; // wird durch headroom/kW_max begrenzt
+      } else {
+        Q_target = Q_demand;
+        if (T_top < VL + 8) {
+          const deficit_kWh = (VL + 10 - T_top) * C_layer;
+          Q_target += Math.min(5, deficit_kWh / 2);
+        }
       }
       Q_target = Math.max(0, Q_target);
     }
@@ -2458,11 +2468,19 @@ function renderPuffer() {
   const Ttop = dailyMean(r.ts.T_top);
   const Tmid = dailyMean(r.ts.T_mid);
   const Tbot = dailyMean(r.ts.T_bot);
+  // Tages-Maximum für T_top (zeigt Legionellen-Peaks)
+  const TtopMax = new Float32Array(365);
+  for (let d = 0; d < 365; d++) {
+    let mx = -Infinity;
+    for (let h = 0; h < 24; h++) { const v = r.ts.T_top[d * 24 + h]; if (v > mx) mx = v; }
+    TtopMax[d] = mx;
+  }
 
   if (charts.pufYear) charts.pufYear.destroy();
   charts.pufYear = new Chart(document.getElementById('chart-puf-year'), {
     type: 'line',
     data: { labels: days, datasets: [
+      { label: 'T oben (Tages-Max)', data: Array.from(TtopMax).map(v => +v.toFixed(1)), borderColor: COL.buf_top, backgroundColor: COL.buf_top + '10', borderWidth: 1, pointRadius: 0, tension: 0.2, fill: '+1' },
       { label: 'T oben (Tages-Ø)', data: Array.from(Ttop).map(v => +v.toFixed(1)), borderColor: COL.buf_top, borderWidth: 1.8, pointRadius: 0, tension: 0.2 },
       { label: 'T mitte', data: Array.from(Tmid).map(v => +v.toFixed(1)), borderColor: COL.buf_mid, borderWidth: 1.5, pointRadius: 0, tension: 0.2 },
       { label: 'T unten', data: Array.from(Tbot).map(v => +v.toFixed(1)), borderColor: COL.buf_bot, borderWidth: 1.5, pointRadius: 0, tension: 0.2 },
