@@ -625,7 +625,7 @@ const P = {
   V_Puffer: 4000, T_Umg: 18, k_Verlust: 0.000002, // pro L und K, kWh/(K·h·L) — ~1,5 kWh/d je 1000L bei 30K ΔT
   // Strompreis etc
   P_Strom: 0.32, P_Oel: 1.10, HW_Oel: 10, eta_Oel: 0.97,
-  P_Holz: 90, HW_Holz: 1600, eta_Holz: 0.92,
+  P_Holz: 90, HW_Holz: 1600, eta_Holz: 0.92, Holz_Fuellraum: 0.125,
   // Jährliche Preissteigerung für TCO-Verlauf
   Infl_Strom: 1, Infl_Oel: 3, Infl_Holz: 2, Infl_aktiv: false, MB_Anteil_Holz: 90,
   // BAFA/BEG Förderung
@@ -888,6 +888,9 @@ function simulate(sysKey, T_aus, loads) {
   let gen_running = false;
   let prev_gen = false;
   let cycles = 0; // An/Aus-Zyklen
+  let holz_burn_remaining = 0; // Stunden Restbrenndauer Holzvergaser
+  const HOLZ_FILL_kWh = P.Holz_Fuellraum * P.HW_Holz; // m³ × kWh/RM
+  const HOLZ_BURN_H = Math.ceil(HOLZ_FILL_kWh / 50); // Brenndauer bei 50 kW
 
   for (let h = 0; h < N; h++) {
     const T_a = T_aus[h];
@@ -940,9 +943,9 @@ function simulate(sysKey, T_aus, loads) {
       // Legionellenprogramm: Erzeuger auf Volllast bis T_top >= T_Legionellen
       gen_running = true;
     } else if (T_max_buf > T_min_buf) {
-      // Normale Hysterese
+      // Normale Hysterese — Holzvergaser bleibt an solange Füllung brennt
       if (!gen_running && T_top < VL + 3) gen_running = true;
-      if (gen_running && T_top > VL + 12) gen_running = false;
+      if (gen_running && T_top > VL + 12 && !(sysKey === 'holz' && holz_burn_remaining > 0)) gen_running = false;
     }
 
     // Soll-Leistung
@@ -979,13 +982,27 @@ function simulate(sysKey, T_aus, loads) {
         e_oel_h = Q / (P.HW_Oel * P.eta_Oel);
         cop_h = P.eta_Oel;
       } else if (sysKey === 'holz') {
-        // Holzvergaser: feuert wenn überhaupt, dann mit voller Last bis Puffer voll
+        // Holzvergaser: Mindest-Brenndauer pro Füllung, dann Pause bis nächster Hysterese-Trigger
         const kW = 50;
-        const Q = Math.min(kW, headroom);
-        Q_gen_h = Q; Q_wp_h = 0;
-        // E_holz als Brennstoff-Endenergie in kWh (= Q / eta), Umrechnung in RM erst beim Plotten/Kosten
-        e_holz_h = Q / P.eta_Holz;
-        cop_h = P.eta_Holz;
+        if (holz_burn_remaining > 0) {
+          // Füllung brennt noch
+          const Q = Math.min(kW, Math.max(headroom, kW * 0.3)); // min 30% bei vollem Puffer (Restglut)
+          Q_gen_h = Q; Q_wp_h = 0;
+          e_holz_h = Q / P.eta_Holz;
+          cop_h = P.eta_Holz;
+          holz_burn_remaining--;
+          if (holz_burn_remaining <= 0) {
+            // Füllung abgebrannt → Erzeuger aus, warten auf nächsten Hysterese-Trigger
+            gen_running = false;
+          }
+        } else {
+          // Neue Füllung starten
+          holz_burn_remaining = HOLZ_BURN_H;
+          const Q = Math.min(kW, headroom);
+          Q_gen_h = Q; Q_wp_h = 0;
+          e_holz_h = Q / P.eta_Holz;
+          cop_h = P.eta_Holz;
+        }
       } else {
         // Wärmepumpe (lwwp/a29/b33) — Inverter-Modulation
         const wp = WP[sysKey];
@@ -1216,6 +1233,7 @@ function setupInputs() {
   makeInput(grp('inputs-preise-2'), 'P_Oel', 'Heizöl', '€/L', 0.05);
   makeInput(grp('inputs-preise-3'), 'P_Holz', 'Holz', '€/RM', 5);
   makeInput(grp('inputs-mischbetrieb'), 'MB_Anteil_Holz', 'Holz-Anteil', '%', 5);
+  makeInput(grp('inputs-mischbetrieb'), 'Holz_Fuellraum', 'Füllraum Holzvergaser', 'm³', 0.025);
 
   makeInput(grp('inputs-infl'), 'Infl_Strom', 'Strom', '%/a', 0.5);
   makeInput(grp('inputs-infl'), 'Infl_Oel', 'Heizöl', '%/a', 0.5);
@@ -1621,24 +1639,24 @@ function renderResults() {
     }
   });
 
-  // Endenergie
-  // Auf einheitliche kWh-Skala bringen
-  const E_strom = order.map(k => STATE.results[k].kpi.E_strom);
-  const E_oel_kWh = order.map(k => STATE.results[k].kpi.E_oel * P.HW_Oel);
-  const E_holz_kWh = order.map(k => STATE.results[k].kpi.E_holz); // bereits in kWh
+  // Endenergie — in natürlichen Einheiten: Strom kWh, Öl Liter, Holz RM
+  const E_strom = order.map(k => Math.round(STATE.results[k].kpi.E_strom));
+  const E_oel_L = order.map(k => Math.round(STATE.results[k].kpi.E_oel)); // bereits in Litern
+  const E_holz_RM = order.map(k => +(STATE.results[k].kpi.E_holz / P.HW_Holz).toFixed(1)); // kWh → RM
   if (charts.endE) charts.endE.destroy();
   charts.endE = new Chart(document.getElementById('chart-endenergy'), {
     type: 'bar',
     data: { labels, datasets: [
-      { label: 'Strom', data: E_strom.map(Math.round), backgroundColor: COL.b33, borderRadius: 4, stack: 'e' },
-      { label: 'Heizöl', data: E_oel_kWh.map(Math.round), backgroundColor: COL.oel, borderRadius: 4, stack: 'e' },
-      { label: 'Holz', data: E_holz_kWh.map(Math.round), backgroundColor: COL.holz, borderRadius: 4, stack: 'e' },
+      { label: 'Strom (kWh)', data: E_strom, backgroundColor: COL.b33, borderRadius: 4, yAxisID: 'y1' },
+      { label: 'Heizöl (Liter)', data: E_oel_L, backgroundColor: COL.oel, borderRadius: 4, yAxisID: 'y1' },
+      { label: 'Holz (RM)', data: E_holz_RM, backgroundColor: COL.holz, borderRadius: 4, yAxisID: 'y2' },
     ]},
     options: { ...chartDefaults,
-      plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 14, boxHeight: 14, padding: 10 } }, tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => c.dataset.label + ': ' + fmt0(c.parsed.y) + ' kWh' } } },
+      plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 14, boxHeight: 14, padding: 10 } }, tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: c => { const v = c.parsed.y; if (!v) return null; return c.dataset.label + ': ' + fmt0(v); } } } },
       scales: {
-        y: { stacked: true, beginAtZero: true, grid: grid(), ticks: { ...tickF(), callback: v => fmt0(v / 1000) + 'k kWh' } },
-        x: { stacked: true, grid: { display: false }, ticks: tickF() }
+        y1: { type: 'linear', position: 'left', beginAtZero: true, grid: grid(), ticks: { ...tickF(), callback: v => fmt0(v) }, title: { display: true, text: 'kWh / Liter', font: { size: 11 } } },
+        y2: { type: 'linear', position: 'right', beginAtZero: true, grid: { display: false }, ticks: { ...tickF(), callback: v => fmt1(v) + ' RM' }, title: { display: true, text: 'Raummeter', font: { size: 11 } } },
+        x: { grid: { display: false }, ticks: tickF() }
       }
     }
   });
