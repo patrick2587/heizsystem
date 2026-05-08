@@ -111,6 +111,14 @@
   .schema-block { font-family: 'SF Mono', monospace; font-size: 11px; line-height: 1.7; color: var(--text-soft); background: var(--bg-soft); padding: 14px 16px; border-radius: var(--radius-sm); white-space: pre; overflow-x: auto; }
   .progress-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 8px; }
   .progress-bar .fill { height: 100%; background: var(--accent); transition: width 0.2s; }
+  .toggle-switch { position: relative; display: inline-block; width: 40px; height: 22px; flex-shrink: 0; }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-switch .slider { position: absolute; inset: 0; background: var(--border); border-radius: 22px; transition: background 0.2s; cursor: pointer; }
+  .toggle-switch .slider::before { content: ''; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+  .toggle-switch input:checked + .slider { background: var(--accent); }
+  .toggle-switch input:checked + .slider::before { transform: translateX(18px); }
+  .wt-opt { color: var(--text-mute); background: transparent; font-weight: 400; user-select: none; }
+  .wt-opt.wt-active { color: #fff; background: var(--accent); font-weight: 500; }
 </style>
 </head>
 <body>
@@ -239,6 +247,13 @@ Bilanz
       <div class="card">
         <h2>Klima & Wetterszenario</h2>
         <div class="meta">Synthetisches Jahr für Mitteleuropa</div>
+        <div style="margin-bottom: 12px;">
+          <div style="font-size: 12px; color: var(--text-soft); margin-bottom: 6px;">Winterszenario</div>
+          <div id="winter-toggle" style="display: inline-flex; border: 1px solid var(--border); border-radius: 99px; overflow: hidden; font-size: 12px; cursor: pointer;">
+            <span data-val="0" class="wt-opt wt-active" style="padding: 5px 16px; transition: all 0.15s;">Normjahr</span>
+            <span data-val="100" class="wt-opt" style="padding: 5px 16px; transition: all 0.15s;">Extremwinter</span>
+          </div>
+        </div>
         <div id="inputs-klima"></div>
       </div>
       <div class="card">
@@ -251,7 +266,7 @@ Bilanz
         <div class="meta">Niedertemperatur über Mischer aus Puffer</div>
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
           <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
-            <input type="checkbox" id="we2-toggle" checked style="width: 16px; height: 16px;">
+            <label class="toggle-switch"><input type="checkbox" id="we2-toggle" checked><span class="slider"></span></label>
             WE2 aktiv
           </label>
         </div>
@@ -291,7 +306,7 @@ Bilanz
         <div id="inputs-preise-3"></div>
         <div style="display: flex; align-items: center; gap: 8px; margin: 12px 0 8px;">
           <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
-            <input type="checkbox" id="infl-toggle" style="width: 16px; height: 16px;">
+            <label class="toggle-switch"><input type="checkbox" id="infl-toggle"><span class="slider"></span></label>
             Inflation im TCO berücksichtigen
           </label>
         </div>
@@ -309,15 +324,15 @@ Bilanz
         <div class="meta">Förderfähig: Wärmepumpen (B33, A29, LWWP). Max. förderfähige Kosten: 45.000 € (2 WE: 30k + 15k). Kumuliert max. 70%.</div>
         <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; margin-bottom: 10px;">
           <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-            <input type="checkbox" id="foerd-grund" style="width: 14px; height: 14px;">
+            <label class="toggle-switch"><input type="checkbox" id="foerd-grund"><span class="slider"></span></label>
             Grundförderung (30%) — jeder Eigentümer
           </label>
           <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-            <input type="checkbox" id="foerd-klima" style="width: 14px; height: 14px;">
+            <label class="toggle-switch"><input type="checkbox" id="foerd-klima"><span class="slider"></span></label>
             Klimageschwindigkeitsbonus (20%) — Ersatz fossiler Heizung, Selbstnutzer
           </label>
           <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-            <input type="checkbox" id="foerd-effizienz" style="width: 14px; height: 14px;">
+            <label class="toggle-switch"><input type="checkbox" id="foerd-effizienz"><span class="slider"></span></label>
             Effizienzbonus (5%) — natürliches Kältemittel oder Erdwärme
           </label>
         </div>
@@ -608,11 +623,11 @@ Bilanz
 // ============================================
 const P = {
   // Klima
-  T_mittel: 9.5, T_amp: 11, T_phase: 18, T_tagesgang: 4.5, Kaeltewellen_intensity: 1.0,
+  T_mittel: 9.5, T_amp: 11, T_phase: 18, T_tagesgang: 4.5, Kaeltewellen_intensity: 1.0, Winter_pct: 0,
   // WE1 Altbau
-  Q_norm_WE1: 22.1, T_Norm: -12, T_HG_WE1: 17, VL_aus_WE1: 65, T_soll_tag_WE1: 22, T_soll_nacht_WE1: 18,
+  Q_norm_WE1: 20.8, T_Norm: -10, T_HG_WE1: 17, VL_aus_WE1: 65, T_soll_tag_WE1: 22, T_soll_nacht_WE1: 18,
   // WE2 Neubau
-  Q_norm_WE2: 5.7, T_HG_WE2: 15, VL_aus_WE2: 35, T_soll_tag_WE2: 22, T_soll_nacht_WE2: 19, WE2_aktiv: true,
+  Q_norm_WE2: 5.4, T_HG_WE2: 15, VL_aus_WE2: 35, T_soll_tag_WE2: 22, T_soll_nacht_WE2: 19, WE2_aktiv: true,
   // Warmwasser
   WW_kWh_d: 9.6, T_WW: 40, T_WW_offset: 5, WW_modus: 'friwa', // 6P · ~40L/P · ΔT 28K (12→40°C)
   // Legionellenschutz: 1× pro Woche Puffer auf 65°C aufheizen
@@ -727,12 +742,26 @@ function buildWeatherSingle(seed) {
 }
 
 function buildWeather() {
-  const T = new Float32Array(HOURS);
+  // Normjahr: 5-Seed-Mittel (glatt, keine Extreme)
+  const T_norm = new Float32Array(HOURS);
   for (const seed of WEATHER_SEEDS) {
     const Ts = buildWeatherSingle(seed);
-    for (let h = 0; h < HOURS; h++) T[h] += Ts[h];
+    for (let h = 0; h < HOURS; h++) T_norm[h] += Ts[h];
   }
-  for (let h = 0; h < HOURS; h++) T[h] /= WEATHER_SEEDS.length;
+  for (let h = 0; h < HOURS; h++) T_norm[h] /= WEATHER_SEEDS.length;
+
+  if (P.Winter_pct <= 0) return T_norm;
+
+  // Extremwinter: einzelner kältester Seed mit verstärkten Kältewellen
+  const savedIntensity = P.Kaeltewellen_intensity;
+  P.Kaeltewellen_intensity = savedIntensity * 1.8; // 1.8× Kältewellen für Extremwinter (~-20°C Minimum)
+  const T_extrem = buildWeatherSingle(271); // Seed 271 erzeugt konsistent kalte Winter
+  P.Kaeltewellen_intensity = savedIntensity;
+
+  // Interpolation: 0% = Normjahr, 100% = Extremwinter
+  const f = P.Winter_pct / 100;
+  const T = new Float32Array(HOURS);
+  for (let h = 0; h < HOURS; h++) T[h] = T_norm[h] * (1 - f) + T_extrem[h] * f;
   return T;
 }
 
@@ -1034,14 +1063,25 @@ function simulate(sysKey, T_aus, loads) {
         e_strom_h += Q_wp_actual / cop;
         cop_h = cop;
 
-        if (VL > wp.vlMax) {
-          const T_RL = Math.max(P.T_Umg, VL - 10);
-          const stab_frac = Math.max(0, Math.min(1, (VL - wp.vlMax) / (VL - T_RL)));
-          const Q_stab = Math.min(P.Stab_kW, stab_frac * Q_target);
-          Q_stab_h = Q_stab;
-          e_strom_h += Q_stab;
-          ts.bivalent[h] = 1;
-          if (Q_wp_actual > 0 && Q_stab > 0) {
+        // Heizstab: bei VL-Überschreitung ODER Leistungsmangel
+        const needsVLboost = VL > wp.vlMax;
+        const needsPowerBoost = !isLegProgramm && Q_demand > Q_wp_actual + 0.5; // WP schafft die Last nicht (nicht bei Legionellen-Aufheizung)
+        if (needsVLboost || needsPowerBoost) {
+          let Q_stab_needed = 0;
+          if (needsVLboost) {
+            const T_RL = Math.max(P.T_Umg, VL - 10);
+            const stab_frac = Math.max(0, Math.min(1, (VL - wp.vlMax) / (VL - T_RL)));
+            Q_stab_needed = stab_frac * Q_target;
+          }
+          if (needsPowerBoost) {
+            // Fehlende Leistung durch Heizstab ergänzen (nur echte Last, nicht Puffer-Recharge)
+            Q_stab_needed = Math.max(Q_stab_needed, Q_demand - Q_wp_actual);
+          }
+          const Q_stab = Math.min(P.Stab_kW, Q_stab_needed, headroom - Q_wp_actual);
+          if (Q_stab > 0) {
+            Q_stab_h = Q_stab;
+            e_strom_h += Q_stab;
+            ts.bivalent[h] = 1;
             cop_h = (Q_wp_actual + Q_stab) / (Q_wp_actual / cop + Q_stab);
           }
         }
@@ -1256,6 +1296,16 @@ function renderOverview() {
   pills.push(pill('Inflation', P.Infl_aktiv, P.Infl_aktiv ? 'Strom ' + P.Infl_Strom + '% · Öl ' + P.Infl_Oel + '% · Holz ' + P.Infl_Holz + '%' : 'aus'));
   const anteil = typeof P.MB_Anteil_Holz === 'number' ? P.MB_Anteil_Holz : 80;
   pills.push(pill('Holz-Anteil', true, anteil + '% Holz / ' + (100 - anteil) + '% Backup'));
+  pills.push(pill('Winter', P.Winter_pct > 0, P.Winter_pct > 0 ? 'Extremwinter' : 'Normjahr'));
+
+  // Max Heizlast berechnen
+  let maxLoad = 0;
+  for (let i = 0; i < HOURS; i++) {
+    const q = STATE.loads.Q_WE1[i] + STATE.loads.Q_WE2[i] + STATE.loads.Q_WW[i];
+    if (q > maxLoad) maxLoad = q;
+  }
+  pills.push(pill('Max. Heizlast', true, fmt1(maxLoad) + ' kW'));
+
   document.getElementById('scenario-pills').innerHTML = pills.join('');
 
   const r_b33 = STATE.results.b33.kpi;
@@ -2695,6 +2745,8 @@ document.getElementById('btn-reset').addEventListener('click', () => {
   document.getElementById('foerd-effizienz').checked = P.Foerd_effizienz;
   document.getElementById('infl-toggle').checked = P.Infl_aktiv;
   document.getElementById('infl-inputs').style.opacity = P.Infl_aktiv ? '1' : '0.4';
+  document.querySelectorAll('#winter-toggle .wt-opt').forEach(el => el.classList.remove('wt-active'));
+  document.querySelector('#winter-toggle .wt-opt[data-val="0"]').classList.add('wt-active');
   rerun();
 });
 
@@ -2707,6 +2759,16 @@ document.getElementById('foerd-effizienz').addEventListener('change', e => { P.F
 document.getElementById('infl-toggle').addEventListener('change', e => {
   P.Infl_aktiv = e.target.checked;
   document.getElementById('infl-inputs').style.opacity = P.Infl_aktiv ? '1' : '0.4';
+  rerun();
+});
+
+// Winter-Toggle (Segmented Control)
+document.getElementById('winter-toggle').addEventListener('click', e => {
+  const opt = e.target.closest('.wt-opt');
+  if (!opt) return;
+  P.Winter_pct = parseInt(opt.dataset.val);
+  document.querySelectorAll('#winter-toggle .wt-opt').forEach(el => el.classList.remove('wt-active'));
+  opt.classList.add('wt-active');
   rerun();
 });
 
