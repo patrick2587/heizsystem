@@ -57,7 +57,44 @@
   .grid-2 { grid-template-columns: 1fr 1fr; }
   .grid-3 { grid-template-columns: repeat(3, 1fr); }
   .grid-4 { grid-template-columns: repeat(4, 1fr); }
-  @media (max-width: 900px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } }
+  @media (max-width: 900px) {
+    .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    .kpi-row { grid-template-columns: repeat(3, 1fr) !important; }
+    #scenario-podium { grid-template-columns: 1fr !important; }
+    .app { padding: 16px 12px; }
+    h1 { font-size: 18px; }
+    .tabs { gap: 0; margin: 16px 0 16px; }
+    .tab { padding: 8px 10px; font-size: 12px; }
+    .card { padding: 14px 14px; }
+    .card h2 { font-size: 13px; }
+    .chart-frame { height: 250px; }
+    .chart-frame.tall { height: 280px; }
+    .schema-block { font-size: 10px; padding: 10px 12px; }
+    .controls-row { padding: 10px 12px; flex-direction: column; align-items: flex-start; }
+    .kpi-grid { font-size: 11px; }
+    .system-card .card-icon svg { width: 22px; height: 22px; }
+    .system-card .card-sub { font-size: 10px; }
+    .input-group label { font-size: 11px; }
+    .input-group input { height: 28px; font-size: 12px; }
+    .desc { font-size: 12px; }
+    .desc p { margin: 6px 0; }
+  }
+  @media (max-width: 600px) {
+    .kpi-row { grid-template-columns: repeat(2, 1fr) !important; }
+    .kpi-row div { font-size: 15px !important; }
+  }
+  @media (max-width: 500px) {
+    .app { padding: 10px 8px; }
+    header { flex-direction: column; gap: 4px; margin-bottom: 4px; }
+    .sub-title { font-size: 11px; }
+    .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab { padding: 7px 8px; font-size: 11px; }
+    .card { padding: 12px 10px; border-radius: 8px; }
+    .chart-frame { height: 220px; }
+    .chart-frame.tall { height: 250px; }
+    .system-card h3 { font-size: 12px; padding-right: 28px; }
+  }
   .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
   .card h2 { font-size: 14px; font-weight: 500; margin: 0 0 4px; color: var(--text); letter-spacing: 0.2px; }
   .card .meta { font-size: 12px; color: var(--text-mute); margin-bottom: 14px; }
@@ -167,7 +204,7 @@
     <div class="card" style="margin-top: 16px;">
       <h2>Energiebilanz-Übersicht</h2>
       <div class="meta">Jahressummen für das aktuell gewählte Wetterszenario, alle 5 Erzeuger-Optionen verglichen.</div>
-      <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;">
+      <div class="kpi-row" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;">
         <div style="background: var(--bg-soft); border-radius: var(--radius-sm); padding: 10px 14px;">
           <div class="meta" id="kpi-q-total-label">Wärmebedarf gesamt</div>
           <div style="font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums;" id="kpi-q-total">–</div>
@@ -773,7 +810,7 @@ function T_soll_we(h, T_tag, T_nacht) {
 
 // Heizkurve-Vorlauf
 function VL_kurve(T_aus, T_HG, T_Norm, T_Raum, VL_aus) {
-  if (T_aus >= T_HG) return T_Raum;
+  if (T_aus >= T_HG) return 0; // Kein Heizbedarf über Heizgrenze
   const frac = Math.max(0, Math.min(1, (T_HG - T_aus) / (T_HG - T_Norm)));
   return T_Raum + frac * (VL_aus - T_Raum);
 }
