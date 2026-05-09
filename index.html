@@ -381,6 +381,11 @@ Bilanz
         </div>
       </div>
       <div class="card">
+        <h2>Anschaffungskosten</h2>
+        <div class="meta">Schlüsselfertig ohne Förderung. Inkl. Installation, Zubehör, ggf. Erdsonden/Öltank.</div>
+        <div id="inputs-capex"></div>
+      </div>
+      <div class="card">
         <h2>Mischbetrieb</h2>
         <div class="meta">Holzvergaser + Backup-System. Modus und Holz-Anteil bestimmen die Allokation.</div>
         <div style="margin-bottom: 8px;">
@@ -684,6 +689,8 @@ const P = {
   Foerd_grund: false, Foerd_klima: false, Foerd_effizienz: false, Foerd_max: 45000, // 30k (1. WE) + 15k (2. WE)
   // Heizstab
   Stab_kW: 36, eta_Stab: 1.0,
+  // Anschaffungskosten schlüsselfertig ohne Förderung
+  C_b33: 40000, C_a29: 30500, C_lwwp: 35000, C_oel: 16000, C_holz: 27300,
   // Wartungskosten €/Jahr je System
   W_b33: 250, W_a29: 250, W_lwwp: 300, W_oel: 350, W_holz: 350,
 };
@@ -707,8 +714,8 @@ const WP = {
 const C_WATER = 0.001163; // kWh/(L·K)
 const HOURS = 8760;
 
-// Anschaffungskosten schlüsselfertig ohne Förderung
-const CAPEX = { b33: 40000, a29: 30500, lwwp: 35000, oel: 16000, holz: 27300 };
+// Anschaffungskosten — dynamisch aus P
+function getCAPEX() { return { b33: P.C_b33, a29: P.C_a29, lwwp: P.C_lwwp, oel: P.C_oel, holz: P.C_holz }; }
 
 // Förderung berechnen: nur WP förderfähig, gedeckelt bei 70%
 function calcFoerderung(sysKey) {
@@ -718,7 +725,7 @@ function calcFoerderung(sysKey) {
   if (P.Foerd_klima) pct += 20;
   if (P.Foerd_effizienz) pct += 5;
   pct = Math.min(pct, 70); // gesetzliche Deckelung
-  const foerdFaehig = Math.min(CAPEX[sysKey], P.Foerd_max);
+  const foerdFaehig = Math.min(getCAPEX()[sysKey], P.Foerd_max);
   return Math.round(foerdFaehig * pct / 100);
 }
 
@@ -1309,6 +1316,12 @@ function setupInputs() {
   makeInput(grp('inputs-preise-1'), 'P_Strom', 'Strompreis', '€/kWh', 0.01);
   makeInput(grp('inputs-preise-2'), 'P_Oel', 'Heizöl', '€/L', 0.05);
   makeInput(grp('inputs-preise-3'), 'P_Holz', 'Holz', '€/RM', 5);
+  makeInput(grp('inputs-capex'), 'C_b33', 'SWWP B33 · Vitocal 350-G', '€', 1000);
+  makeInput(grp('inputs-capex'), 'C_a29', 'SWWP A29 · Vitocal 300-G', '€', 1000);
+  makeInput(grp('inputs-capex'), 'C_lwwp', 'LWWP · Vaillant aroTHERM', '€', 1000);
+  makeInput(grp('inputs-capex'), 'C_oel', 'Ölkessel · Vitoladens 300-W', '€', 1000);
+  makeInput(grp('inputs-capex'), 'C_holz', 'Holzvergaser · Fröling S3', '€', 1000);
+
   makeInput(grp('inputs-mischbetrieb'), 'MB_Anteil_Holz', 'Holz-Anteil', '%', 5);
   makeInput(grp('inputs-mischbetrieb'), 'Holz_Fuellraum', 'Füllraum Holzvergaser', 'm³', 0.025);
 
@@ -1430,7 +1443,7 @@ function renderOverview() {
           <div class="key">Q_gen / (Last+Verl)</div><div class="val" style="color: ${ratioColor};">${fmt2(r.gen_load_ratio)}</div>
           ${scopRow}
           ${eRow}
-          <div class="key">Anschaffung</div><div class="val">${fmt0(CAPEX[k])} €${calcFoerderung(k) > 0 ? ' <span style="color:var(--col-ok); font-size:10px;">−' + fmt0(calcFoerderung(k)) + ' Förd.</span>' : ''}</div>
+          <div class="key">Anschaffung</div><div class="val">${fmt0(getCAPEX()[k])} €${calcFoerderung(k) > 0 ? ' <span style="color:var(--col-ok); font-size:10px;">−' + fmt0(calcFoerderung(k)) + ' Förd.</span>' : ''}</div>
           <div class="key">Wartung</div><div class="val">${fmt0(wartung)} €/a</div>
           <div class="key">Jahreskosten</div><div class="val">${fmt0(cost)} €</div>
           <div class="key">VL-Deckung</div><div class="val">${pct(r.coverage)}</div>
@@ -2098,7 +2111,7 @@ function renderMischbetrieb() {
 
   // Plot 3: 20-Jahre-TCO Backup ohne Förderung (Anschaffung + 20 · Mehrkosten)
   // CAPEX-Werte aus v3-App, brutto ohne Förderung
-  const capexBackup = CAPEX;
+  const capexBackup = getCAPEX();
   // BWWP-Kosten: CAPEX einmal auf alle Systeme, Jahreskosten (Strom+Wartung) auf jedes
   const bwwpActive = P.WW_modus === 'bwwp';
   const friwaActive = P.WW_modus === 'friwa';
